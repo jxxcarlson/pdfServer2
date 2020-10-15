@@ -1,0 +1,159 @@
+
+\documentclass[11pt, oneside]{article}
+
+%% Packages
+\usepackage{geometry}
+\geometry{letterpaper}
+\usepackage{changepage}   % for the adjustwidth environment
+\usepackage{graphicx}
+\usepackage{wrapfig}
+\graphicspath{ {images/} }
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amscd}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,
+    urlcolor=blue,
+}
+\usepackage{xcolor}
+\usepackage{soul}
+
+
+%% Commands
+\newcommand{\code}[1]{{\tt #1}}
+\newcommand{\ellie}[1]{\href{#1}{Link to Ellie}}
+% \newcommand{\image}[3]{\includegraphics[width=3cm]{#1}}
+
+\newcommand{\imagecenter}[3]{{
+   \medskip
+   \begin{figure}
+   \centering
+    \includegraphics[width=12cm,height=12cm,keepaspectratio]{#1}
+    \vglue0pt \par {#2}
+    \end{figure}
+    \medskip
+}}
+
+\newcommand{\imagefloatright}[3]{
+    \begin{wrapfigure}{R}{0.30\textwidth}
+    \includegraphics[width=0.30\textwidth]{#1}
+    \caption{#2}
+    \end{wrapfigure}
+}
+
+\newcommand{\imagefloatleft}[3]{
+    \begin{wrapfigure}{L}{0.3-\textwidth}
+    \includegraphics[width=0.30\textwidth]{#1}
+    \caption{#2}
+    \end{wrapfigure}
+}
+
+\newcommand{\italic}[1]{{\sl #1}}
+\newcommand{\strong}[1]{{\bf #1}}
+\newcommand{\subheading}[1]{{\bf #1}\par}
+\newcommand{\xlinkPublic}[2]{\href{{http://www.knode.io/\#@public#1}}{#2}}
+\newcommand{\red}[1]{\textcolor{red}{#1}}
+\newcommand{\blue}[1]{\textcolor{blue}{#1}}
+\newcommand{\remote}[1]{\textcolor{red}{#1}}
+\newcommand{\local}[1]{\textcolor{blue}{#1}}
+\newcommand{\highlight}[1]{\hl{#1}}
+%% \newcommand{\meta}[2]{\textcolor{blue}{#1}: }{\hl{#1}}
+\newcommand{\strike}[1]{\st{#1}}
+\newcommand{\term}[1]{{\sl #1}}
+\newtheorem{remark}{Remark}
+\newcommand{\comment}[1]{}
+\newcommand{\innertableofcontents}{}
+
+%% Theorems
+\newtheorem{theorem}{Theorem}
+\newtheorem{axiom}{Axiom}
+\newtheorem{lemma}{Lemma}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\newtheorem{definition}{Definition}
+\newtheorem{example}{Example}
+\newtheorem{exercise}{Exercise}
+\newtheorem{problem}{Problem}
+\newtheorem{exercises}{Exercises}
+\newcommand{\bs}[1]{$\backslash$#1}
+\newcommand{\texarg}[1]{\{#1\}}
+
+%% Environments
+\renewenvironment{quotation}
+  {\begin{adjustwidth}{2cm}{} \footnotesize}
+  {\end{adjustwidth}}
+
+% Spacing
+\parindent0pt
+\parskip5pt
+
+\begin{document}
+
+
+
+
+ \title{Note  on  the  Lambda  Calculus}
+ \maketitle
+We  consider  some  computations  in  the  lambda-calculus.  These  are  function  applications,  some  which  have  reduction  sequences  that  terminate  in  a  finite  number  of  steps,  others  that  do  not.   Possibile  non-termination  is  a  feature  of  the   \italic{untyped} "original"  lambda  calculus.   Later  Church  introduced  the  simply-typed  lambda  calculus,  in  which  such  behavior  is  excluded.
+
+
+ \subheading{Example  1}
+Consider  the  lambda  expression   $\alpha = \lambda x. x + x$  applied  to  the  integer  2.  This  function  application  reduces  to  the  expression   $2 + 2$  which  in  turn  reduces  to  the  integer   $4$ .   No  further  reduction  is  possible.   The  reduction  process  terminates  in  a  finite  number  of  steps.  We  write  this  as
+
+
+$$
+ (\lambda x. x + x) 2 \to 2 + 2 \to 4
+$$
+
+ \subheading{Example  2}
+Let    $\phi = \lambda x. xx$  and  consider  the  expression   $\phi \phi$ .  It  "reduces"  as  follows:
+
+
+\begin{align}
+\phi \phi & = (\lambda x. xx)(\lambda x. xx) \\
+  & = (\lambda x. xx)(\lambda x. xx)  \\
+& = (\lambda x. xx)(\lambda x. xx)  \\
+& etc.
+\end{align}
+
+The   reduction  sequence
+
+
+$$
+\phi \phi \to \phi\phi \to \phi\phi \to \cdots
+$$
+
+is  nonterminating.
+
+
+ \subheading{Example  3}
+Let    $\psi = \lambda x. xxx$  and  consider  the  expression   $\psi \psi$ :
+
+
+\begin{align}
+\psi \psi & = (\lambda x. xxx)(\lambda x. xxx) \\
+  & = (\lambda x. xx)(\lambda x. xx) (\lambda x. xx) \\
+& = (\lambda x. xx)(\lambda x. xx)(\lambda x. xx)(\lambda x. xx)  \\
+& etc.
+\end{align}
+
+Again,  the  reduction  sequence
+
+
+$$
+\psi\psi \to \psi\psi\psi \to \psi\psi\psi\psi \to \cdots
+$$
+
+is  non-terminating.
+
+
+ \subheading{Simply-typed  lambda  calculus.}
+The  non-terminating  reduction  sequences  observed  above  arose  when  certain  function  were  applied  to  themselves.   Consider  now  a  typed  language,  so  that  functions  from  things  of  type   $A$  to  things  of  type   $B$  themselves  have  a  type,  which  one  writes  as   $A \to B$ .   Let   $f$  be  a  function  of  this  type.   Then  we  may  apply   $f$  to  things  of  type   $A$  but  not  to  itself,  since  the  argument   in   $f$  applied  to   $f$  has  type   $A \to B$ .
+
+
+
+
+\end{document}
