@@ -1,7 +1,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 
 
-module Process (createPdf,  cleanup, remove) where
+module Pdf (create,  cleanup, remove) where
 
 import Data.Text.Lazy (unpack)
 import System.Process
@@ -11,8 +11,8 @@ import Data.List
 import Document
 
 
-createPdf :: Document -> IO()
-createPdf document =
+create :: Document -> IO()
+create document =
     let
         fileName = unpack $ Document.docId document
     in
@@ -94,7 +94,7 @@ template =
         <body style="background-color: #444">
 
         <div style="margin-top: 90px; margin-left: 90px; width: 175px; height: 80x; padding: 15px; padding-left: 40px; background-color: #eeeeff">
-            <p>Here is your <a href="FILENAME.pdf">PDF File</a></p>
+            <p>Here is your <a href="FILENAME.pdf">PDF File (2)</a></p>
         </div>
 
         </body>

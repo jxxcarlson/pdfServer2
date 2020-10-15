@@ -27,7 +27,7 @@ source-repository head
 
 library
   exposed-modules:
-      Lib, Process, Document
+      Pdf, Document
   other-modules:
       Paths_pdfServerScotty
   hs-source-dirs:
@@ -41,6 +41,7 @@ library
     , MissingH >=1.4.0.1
     , text >=1.2.4.0
     , aeson >=1.4.7.1
+
   default-language: Haskell2010
 
 executable pdfServerScotty-exe
@@ -55,6 +56,8 @@ executable pdfServerScotty-exe
     , pdfServerScotty
     , scotty
     , http-types
+    , wai-middleware-static >=0.8.3
+
   default-language: Haskell2010
 
 test-suite pdfServerScotty-test

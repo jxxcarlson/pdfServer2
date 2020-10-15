@@ -2,3 +2,7 @@
 *~
 pdfFiles/*.*
 textFiles/*.*
+app/Main
+app/Main.o
+app/Main.hi
+
