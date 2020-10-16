@@ -20,7 +20,7 @@ import System.Process
 import Pdf
 import Document (Document, write, writeImageManifest, cleanImages, docId)
 
-main = scotty 3001 $ do
+main = scotty 8080 $ do
     middleware corsPolicy -- simpleCors
 
     post "/pdf" $ do
@@ -43,6 +43,9 @@ main = scotty 3001 $ do
     get "/pdf/:id" $ do
         docId <- param "id"
         file ("pdfFiles/" ++ docId ++ ".pdf")
+
+    get "/hello $ do
+       html $ text "Yes, I am indeed alive.  Thankyou for asking."
 
     middleware $ staticPolicy (noDots >-> addBase "pdfFiles")
 
