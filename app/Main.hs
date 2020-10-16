@@ -20,7 +20,7 @@ import System.Process
 import Pdf
 import Document (Document, write, writeImageManifest, cleanImages, docId)
 
-main = scotty 8080 $ do
+main = scotty 80 $ do
     middleware corsPolicy -- simpleCors
 
     post "/pdf" $ do
