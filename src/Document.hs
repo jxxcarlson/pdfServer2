@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 module Document where
 import Data.Text.Lazy
 import Data.Text.Lazy.Encoding

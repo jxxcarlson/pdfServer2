@@ -10,17 +10,27 @@ import             Control.Monad.IO.Class (liftIO) -- liftIO :: IO a -> m a
 
 import Web.Scotty
 import Network.HTTP.Types
-import Network.Wai.Middleware.Static
+import Data.Text.Lazy (pack)
+import Network.Wai.Middleware.Static ( (>->), addBase, noDots, staticPolicy )
+import Web.Scotty
+import Network.Wai.Middleware.Cors
 
 import Pdf
 import Document
 
-main = scotty 3000 $ do
+main = scotty 3001 $ do
+    middleware corsPolicy -- simpleCors
+
     post "/pdf" $ do
+        
         document <- jsonData :: ActionM Document 
         liftIO $ Document.write document
         liftIO $ Pdf.create document
         text (Document.docId document)
+
+    get "/pdflink/:id" $ do
+        docId <- param "id"
+        html $ pack $ Pdf.makeWebPage "http://localhost:3000" docId
 
     get "/pdf/:id" $ do
         docId <- param "id"
@@ -29,3 +39,9 @@ main = scotty 3000 $ do
     middleware $ staticPolicy (noDots >-> addBase "pdfFiles")
 
 
+-- corsPolicy :: Middleware
+corsPolicy = cors (const $ Just policy)
+    where
+      policy = simpleCorsResourcePolicy
+        { corsOrigins  = Nothing
+        , corsRequestHeaders = ["Content-Type"]  }

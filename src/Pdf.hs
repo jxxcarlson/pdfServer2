@@ -1,7 +1,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 
 
-module Pdf (create,  cleanup, remove) where
+module Pdf (create,  cleanup, remove, makeWebPage) where
 
 import Data.Text.Lazy (unpack)
 import System.Process
@@ -20,7 +20,7 @@ create document =
         createPdf_ fileName
         createPdf_ fileName
         cleanup fileName
-        writeWebPage fileName
+        --writeWebPage fileName
 
 
 remove :: String -> IO ()
@@ -28,10 +28,10 @@ remove fileName =
     let
         cmd1 f = "rm texFiles/" ++ f ++ ".tex"
         cmd2 f = "rm pdfFiles/" ++ f ++ ".pdf"
-        cmd3 f = "rm pdfFiles/" ++ f ++ ".html"
+        -- cmd3 f = "rm pdfFiles/" ++ f ++ ".html"
         cmd = cmd1 fileName  ++ ";" 
                ++ cmd2 fileName ++ ";" 
-               ++ cmd3 fileName
+               -- ++ cmd3 fileName
     in
         system cmd >>= \exitCode -> print exitCode
 
@@ -47,16 +47,10 @@ cleanup fileName =
 
 -- HELPERS 
 
-makeWebPage :: String -> String
-makeWebPage fileName = 
-    replace "FILENAME" fileName template
+makeWebPage :: String -> String -> String
+makeWebPage server fileName = 
+    replace "SERVER" server $ replace "FILENAME" fileName template
 
-writeWebPage :: String -> IO()
-writeWebPage fileName = 
-    let
-        webPageFilePath = "pdfFiles/" ++ fileName ++ ".html"
-    in
-        writeFile webPageFilePath $ makeWebPage fileName
 
 rep a b s@(x:xs) = if Data.List.isPrefixOf a s
 
@@ -74,7 +68,7 @@ createPdf_ :: String -> IO ()
 createPdf_ fileName =
     let
         texFile = "texFiles/" ++ fileName ++ ".tex"
-        cmd_ = "pdflatex -output-directory=pdfFiles " ++ texFile
+        cmd_ = "xelatex -output-directory=pdfFiles -interaction=nonstopmode " ++ texFile
         cmd = cmd_ ++ " ; " ++ cmd_
     in
         system cmd >>= \exitCode -> print exitCode
@@ -83,6 +77,8 @@ createPdf_ fileName =
      
 replace :: Eq a => [a] -> [a] -> [a] -> [a]
 replace old new l = SU.join new . SU.split old $ l
+
+
 
 template :: String
 template = 
@@ -94,7 +90,7 @@ template =
         <body style="background-color: #444">
 
         <div style="margin-top: 90px; margin-left: 90px; width: 175px; height: 80x; padding: 15px; padding-left: 40px; background-color: #eeeeff">
-            <p>Here is your <a href="FILENAME.pdf">PDF File (2)</a></p>
+            <p>Here is your <a href="SERVER/pdf/FILENAME">PDF File</a></p>
         </div>
 
         </body>
