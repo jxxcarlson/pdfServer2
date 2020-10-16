@@ -44,8 +44,8 @@ main = scotty 8080 $ do
         docId <- param "id"
         file ("pdfFiles/" ++ docId ++ ".pdf")
 
-    get "/hello $ do
-       html $ text "Yes, I am indeed alive.  Thankyou for asking."
+    get "/hello" $ do
+        html $ mconcat ["<p>Yes, I am still here.</p"]
 
     middleware $ staticPolicy (noDots >-> addBase "pdfFiles")
 
