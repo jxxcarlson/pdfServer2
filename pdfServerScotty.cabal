@@ -60,6 +60,7 @@ executable pdfServerScotty-exe
     , text >=1.2.4.0
     , wai-cors >=0.2.7
     , process >=1.6.1.0
+    , wai-extra >=3.0.32
 
  
 

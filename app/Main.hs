@@ -14,6 +14,7 @@ import Data.Text.Lazy (pack, Text)
 import Network.Wai.Middleware.Static ( (>->), addBase, noDots, staticPolicy )
 import Web.Scotty
 import Network.Wai.Middleware.Cors
+import Network.Wai.Middleware.RequestLogger
 import System.Process
 
 
@@ -21,7 +22,8 @@ import Pdf
 import Document (Document, write, writeImageManifest, cleanImages, docId)
 
 main = scotty 80 $ do
-    middleware corsPolicy -- simpleCors
+    middleware corsPolicy 
+    middleware logStdoutDev
 
     post "/pdf" $ do
         

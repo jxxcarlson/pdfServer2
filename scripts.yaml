@@ -8,4 +8,4 @@ scripts:
 
   ping: ping 161.35.125.40
 
-  test-server: curl https://161.35.125.40:80/hello
+  test-server: curl http://161.35.125.40/hello
