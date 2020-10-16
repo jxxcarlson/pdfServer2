@@ -1,11 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Document (Document, docId, write, writeImageManifest) where
+module Document (Document, docId, write, writeImageManifest, cleanImages) where
 import Data.Text.Lazy ( unpack, Text )
 import Data.Text.Lazy.Encoding
 import Data.Aeson
 import Control.Applicative
 import System.Process
+import Data.List.Split
 
 -- Define the Article constructor
 -- e.g. Article 12 "some title" "some body text"
@@ -46,12 +47,20 @@ write doc =
   in
     writeFile fileName contents
 
+cleanImages :: Text -> IO()
+cleanImages docId =
+     do
+       let  manifestFileName = "texFiles/" ++ (unpack docId) ++ "_image_manifest.txt"
+       manifest <- readFile manifestFileName 
+       let commands = Document.removeImagesCommand manifest  
+       system commands >>= \exitCode -> print exitCode  
+
+
 writeImageManifest :: Document -> IO()
 writeImageManifest doc =
   let
     urlData =  joinStrings "\n" $ Prelude.map unpack  (urlList doc)
     fileName = "texFiles/" ++ (unpack $ docId doc) ++ "_image_manifest.txt"
-    -- cmd = "wget -i -P " ++ "texFiles/image " ++ fileName
     cmd = "wget -P image -i " ++ fileName
 
   in 
@@ -60,6 +69,19 @@ writeImageManifest doc =
       system cmd >>= \exitCode -> print exitCode
 
 
+
+
+removeImagesCommand :: String -> String
+removeImagesCommand manifest =
+    joinStrings "; " $ map removeImageCommand $ lines manifest  
+
+
+removeImageCommand :: String -> String
+removeImageCommand imageName = 
+    "rm image/" ++ (getImageName imageName)
+
+getImageName :: String -> String
+getImageName str = last $ splitOn "/" str
 
 
 

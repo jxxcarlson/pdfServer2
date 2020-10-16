@@ -3,3 +3,7 @@ scripts:
   exec: stack exec pdfServerScotty-exe
 
   cloc: cloc --by-file src app
+
+  ssh: ssh root@161.35.125.40
+
+  ping: ping 161.35.125.40

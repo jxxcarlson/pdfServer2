@@ -3,7 +3,7 @@
 
 module Pdf (create,  cleanup, remove, makeWebPage) where
 
-import Data.Text.Lazy (unpack)
+import Data.Text.Lazy (Text, unpack)
 import System.Process
 import qualified Data.String.Utils as SU
 import Text.RawString.QQ
@@ -23,15 +23,14 @@ create document =
         --writeWebPage fileName
 
 
-remove :: String -> IO ()
+remove :: Text -> IO ()
 remove fileName =
     let
-        cmd1 f = "rm texFiles/" ++ f ++ ".tex"
-        cmd2 f = "rm pdfFiles/" ++ f ++ ".pdf"
-        -- cmd3 f = "rm pdfFiles/" ++ f ++ ".html"
-        cmd = cmd1 fileName  ++ ";" 
-               ++ cmd2 fileName ++ ";" 
-               -- ++ cmd3 fileName
+        f = unpack fileName
+        cmd1 = "rm texFiles/" ++ f ++ ".tex"
+        cmd2 = "rm pdfFiles/" ++ f ++ ".pdf"
+        cmd3 = "rm texFiles/" ++ f ++ "_image_manifest.txt"
+        cmd = cmd1  ++ "; " ++ cmd2++ "; " ++ cmd3
     in
         system cmd >>= \exitCode -> print exitCode
 
