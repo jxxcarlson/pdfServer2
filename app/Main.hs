@@ -16,7 +16,7 @@ import Web.Scotty
 import Network.Wai.Middleware.Cors
 
 import Pdf
-import Document
+import Document (Document, write, writeImageManifest, docId)
 
 main = scotty 3001 $ do
     middleware corsPolicy -- simpleCors
@@ -25,6 +25,7 @@ main = scotty 3001 $ do
         
         document <- jsonData :: ActionM Document 
         liftIO $ Document.write document
+        liftIO $ Document.writeImageManifest document
         liftIO $ Pdf.create document
         text (Document.docId document)
 

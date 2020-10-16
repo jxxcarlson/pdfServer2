@@ -8,7 +8,7 @@ import System.Process
 import qualified Data.String.Utils as SU
 import Text.RawString.QQ
 import Data.List
-import Document
+import Document (Document, docId)
 
 
 create :: Document -> IO()
