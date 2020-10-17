@@ -17,11 +17,20 @@ import Network.Wai.Middleware.Cors
 import Network.Wai.Middleware.RequestLogger
 import System.Process
 
+import           Web.Scotty
+import           Web.Scotty.TLS
+
 
 import Pdf
 import Document (Document, write, writeImageManifest, cleanImages, docId)
 
-main = scotty 80 $ do
+certificate :: String
+certificate = "/etc/letsencrypt/live/shoobox.io/fullchain.pem"
+
+key :: String
+key = "/etc/letsencrypt/live/shoobox.io/privkey.pem"
+
+main = scottyTLS 80 key certificate $ do
     middleware corsPolicy 
     middleware logStdoutDev
 

@@ -3,7 +3,14 @@
 # For more information, please see the documentation at:
 #   https://docs.haskellstack.org/en/stable/lock_files
 
-packages: []
+packages:
+- completed:
+    hackage: scotty-tls-0.4.1@sha256:3eea55183b06e48f3c8407131ebd79d70515a2bd1825d5334f76eeace95f8f69,1000
+    pantry-tree:
+      size: 368
+      sha256: 2bbffe0e99ff20397aa51bfc4f26be862228475d0c37c67e3c9d2cc66ecc291b
+  original:
+    hackage: scotty-tls-0.4.1@sha256:3eea55183b06e48f3c8407131ebd79d70515a2bd1825d5334f76eeace95f8f69,1000
 snapshots:
 - completed:
     size: 532172
