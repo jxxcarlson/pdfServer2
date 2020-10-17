@@ -47,7 +47,11 @@ main = scotty 80 $ do
         file ("pdfFiles/" ++ docId ++ ".pdf")
 
     get "/hello" $ do
-        html $ mconcat ["<p>Yes, I am still here.</p"]
+        html $ mconcat ["Yes, I am still here\n"]
+
+
+    post "/hello" $ do
+       text "Yes, I am still here\n"
 
     middleware $ staticPolicy (noDots >-> addBase "pdfFiles")
 
