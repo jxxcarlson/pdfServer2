@@ -70,7 +70,7 @@ writeImageManifest doc =
     cmd3 = "wget -P image -i " ++ (fileName ++ "-1")
     -- get the ibb.co images
     cmd4 = "wget -P image -i " ++ (fileName ++ "-2") ++ " -x"
-    l1 = "for p in `cat foo.txt-2 | sed 's/https:\\/\\/i.ibb.co\\///g' | sed 's/\\/image.png//g'`\n"
+    l1 = "for p in `cat " ++ (fileName ++ "-2") ++ " | sed 's/https:\\/\\/i.ibb.co\\///g' | sed 's/\\/image.png//g'`\n"
     l2 = "do\n"
     l3 = "cp bar/i.ibb.co/$p/image.png bar/$p.png\n"
     l4 = "done"
