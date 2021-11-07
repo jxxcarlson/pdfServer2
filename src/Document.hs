@@ -80,8 +80,15 @@ removeImageCommand :: String -> String
 removeImageCommand imageName = 
     "rm image/" ++ (getImageName imageName)
 
+getImageName1 :: String -> String
+getImageName1 str = last $ splitOn "/" str
+
 getImageName :: String -> String
-getImageName str = last $ splitOn "/" str
+getImageName str =
+  case reverse $ splitOn "/" str of
+    ("image.png":url:rest) -> url ++ ".png"
+    (last:rest) -> last
+    _ -> "nothing.png"
 
 
 
