@@ -8,4 +8,6 @@ image/*.*
 app/Main
 app/Main.o
 app/Main.hi
-
+nohup.out
+pdfServer
+image/
