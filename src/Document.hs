@@ -61,12 +61,45 @@ writeImageManifest doc =
   let
     urlData =  joinStrings "\n" $ Prelude.map unpack  (urlList doc)
     fileName = "texFiles/" ++ (unpack $ docId doc) ++ "_image_manifest.txt"
-    cmd = "wget -P image -i " ++ fileName
-
-  in 
+    -- cmd = "wget -P image -i " ++ fileName
+    -- make document with normal image urls
+    cmd1 = "grep -v image.png " ++ fileName ++ " > "  ++  (fileName ++ "-1")
+    -- make documet with image urls for ibb.co
+    cmd2 = "grep image.png " ++ fileName ++ " > " ++ (fileName ++ "-2")
+    -- get the normal images
+    cmd3 = "wget -P image -i " ++ (fileName ++ "-1")
+    -- get the ibb.co images
+    cmd4 = "wget -P image -i " ++ (fileName ++ "-2") ++ " -x"
+    l1 = "for p in `cat foo.txt-2 | sed 's/https:\\/\\/i.ibb.co\\///g' | sed 's/\\/image.png//g'`\n"
+    l2 = "do\n"
+    l3 = "cp bar/i.ibb.co/$p/image.png bar/$p.png\n"
+    l4 = "done"
+    cmd5 = l1 ++ l2 ++ l3 ++ l4
+  in
     do 
       writeFile fileName urlData
-      system cmd >>= \exitCode -> print exitCode
+      system cmd1 >>= \exitCode -> print exitCode
+      system cmd2 >>= \exitCode -> print exitCode
+      system cmd3 >>= \exitCode -> print exitCode
+      system cmd4 >>= \exitCode -> print exitCode
+      system cmd5 >>= \exitCode -> print exitCode
+
+
+-- wget -Px bar -i foo.txt
+-- wget -P bar -i foo.txt -x
+
+-- foo.txt:
+-- https://psurl.s3.amazonaws.com/images/jc/sinc2-bcbf.png
+-- https://psurl.s3.amazonaws.com/images/jc/beats-eca1.png
+-- https://pentucketnews.com/wp-content/uploads/2014/11/Classic.jpg
+-- https://i.ibb.co/T0wS1CD/image.png
+-- https://i.ibb.co/Fs0xQtq/image.png
+
+-- cp bar/i.ibb.co/T0wS1CD/image.png bar/T0wS1CD.png
+-- 1. grep -v image.png foo.txt > foo.txt-1
+-- 2. grep image.png foo.txt > foo.txt-2
+-- 3. wget -P bar -i foo.txt-1
+-- 4. wget -P bar -i foo.txt-2 -x
 
 
 
