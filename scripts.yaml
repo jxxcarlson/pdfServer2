@@ -2,10 +2,42 @@ scripts:
   
   exec: stack exec pdfServerScotty-exe
 
+  start-nh: nohup ./pdfServer &
+
+  start-co: ./pdfServer
+
+  start: systemctl start pdfServer
+
+  edit-start: vim /etc/systemd/system/pdfServer.service
+
   cloc: cloc --by-file src app
 
   ssh: ssh root@161.35.125.40
 
   ping: ping 161.35.125.40
 
-  test-server: curl http://161.35.125.40/hello
+  hello: curl http://pdfserv.app/hello
+
+  hello2: curl https://pdfserv.app/hello
+
+  clean: rm pdfFiles/*; rm texFiles/*; rm image/*;
+
+  alive: sudo lsof -n -i :3000
+
+  reload: systemctl reload nginx
+
+  config: cat /etc/nginx/sites-available/pdfserver
+
+  edit-server: vim /etc/nginx/sites-available/pdfserver
+  
+  logs: tail  /var/log/nginx/access.log
+
+  nginx: systemctl status nginx
+
+  certbot-renew: certbot renew
+
+  nginx-stop: systemctl stop nginx
+
+  nginx-restart: systemctl restart nginx
+
+  nginx-start: systemctl start nginx
