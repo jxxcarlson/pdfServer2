@@ -21,7 +21,7 @@ import System.Process
 import Pdf
 import Document (Document, write, writeImageManifest, cleanImages, docId)
 
-main = scotty 80 $ do
+main = scotty 3000 $ do
     middleware corsPolicy 
     middleware logStdoutDev
 
