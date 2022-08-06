@@ -107,7 +107,8 @@ makeTarFile doc =
   let
     urlData =  joinStrings "\n" $ Prelude.map unpack  (urlList doc)
     fileName = "texFiles/" ++ (unpack $ docId doc) ++ "_image_manifest.txt"
-    imageDirectory = "image/" ++ (unpack $ docId doc) ++ "/"
+    imageDirectory1 = "image/" ++ (unpack $ docId doc) ++ "/"
+    imageDirectory = "image/tmp/"
     -- cmd = "wget -P image -i " ++ fileName
     -- make document with normal image urls
     cmd1 = "grep -v image.png " ++ fileName ++ " > "  ++  (fileName ++ "-1")
