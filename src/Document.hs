@@ -123,7 +123,7 @@ makeTarFile doc =
     l3 = "cp image/i.ibb.co/$p/image.png " ++ imageDirectory ++ " $p.png\n"
     l4 = "done"
     cmd5 = l1 ++ l2 ++ l3 ++ l4
-    cmd6 = "cat This is a test. > image/tmp/foo.txt"
+    cmd6 = "echo 'This is a test.' > image/tmp/foo.txt"
   in
     do 
       system cmd6 >>= \exitCode -> print exitCode
