@@ -29,8 +29,8 @@ main = scotty 3000 $ do
         
         document <- jsonData :: ActionM Document 
         liftIO $ Document.write document
-        liftIO $ Document.writeImageManifest document
         liftIO $ Document.makeTarFile document
+        liftIO $ Document.writeImageManifest document
         liftIO $ Pdf.create document
         text (Document.docId document)
 

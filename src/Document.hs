@@ -59,6 +59,8 @@ cleanImages docId =
 writeImageManifest :: Document -> IO()
 writeImageManifest doc =
   let
+    texFileName = "texFiles/tmp/" ++ (unpack $ docId doc) 
+    contents = unpack $ content doc
     urlData =  joinStrings "\n" $ Prelude.map unpack  (urlList doc)
     fileName = "texFiles/" ++ (unpack $ docId doc) ++ "_image_manifest.txt"
     -- cmd = "wget -P image -i " ++ fileName
@@ -67,17 +69,20 @@ writeImageManifest doc =
     -- make documet with image urls for ibb.co
     cmd2 = "grep image.png " ++ fileName ++ " > " ++ (fileName ++ "-2")
     -- get the normal images
-    cmd3 = "wget -P image -i " ++ (fileName ++ "-1")
+    cmd3 = "wget -P texFiles/tmp/image -i " ++ (fileName ++ "-1")
     -- get the ibb.co images
-    cmd4 = "wget -P image -i " ++ (fileName ++ "-2") ++ " -x"
+    cmd4 = "wget -P texFiles/tmp/image -i " ++ (fileName ++ "-2") ++ " -x"
     l1 = "for p in `cat " ++ (fileName ++ "-2") ++ " | sed 's/https:\\/\\/i.ibb.co\\///g' | sed 's/\\/image.png//g'`\n"
     l2 = "do\n"
     l3 = "cp image/i.ibb.co/$p/image.png image/$p.png\n"
     l4 = "done"
     cmd5 = l1 ++ l2 ++ l3 ++ l4
+    rmOldFiles = "rm texFiles/tmp/*.tex; rm texFiles/tmp/image/*"
   in
     do 
+      system rmOldFiles >>= \exitCode -> print exitCode
       writeFile fileName urlData
+      writeFile texFileName contents
       system cmd1 >>= \exitCode -> print exitCode
       system cmd2 >>= \exitCode -> print exitCode
       system cmd3 >>= \exitCode -> print exitCode
@@ -107,8 +112,8 @@ makeTarFile doc =
   let
     urlData =  joinStrings "\n" $ Prelude.map unpack  (urlList doc)
     fileName = "texFiles/" ++ (unpack $ docId doc) ++ "_image_manifest.txt"
-    imageDirectory1 = "image/" ++ (unpack $ docId doc) ++ "/"
-    imageDirectory = "image/tmp/"
+    -- imageDirectory1 = "image/" ++ (unpack $ docId doc) ++ ""
+    imageDirectory = "image/tmp"
     -- cmd = "wget -P image -i " ++ fileName
     -- make document with normal image urls
     cmd1 = "grep -v image.png " ++ fileName ++ " > "  ++  (fileName ++ "-1")
@@ -123,10 +128,9 @@ makeTarFile doc =
     l3 = "cp image/i.ibb.co/$p/image.png " ++ imageDirectory ++ " $p.png\n"
     l4 = "done"
     cmd5 = l1 ++ l2 ++ l3 ++ l4
-    cmd6 = "echo 'This is a test.' > image/tmp/foo.txt"
+    -- cmd6 = "echo 'This is a test.' > image/tmp/foobar.txt"
   in
     do 
-      system cmd6 >>= \exitCode -> print exitCode
       writeFile fileName urlData
       system cmd1 >>= \exitCode -> print exitCode
       system cmd2 >>= \exitCode -> print exitCode
@@ -134,14 +138,6 @@ makeTarFile doc =
       system cmd4 >>= \exitCode -> print exitCode
       system cmd5 >>= \exitCode -> print exitCode
       
-makeTarFileX :: Document -> IO()
-makeTarFileX doc =
-  let
-    cmd6 = "echo 'This is a test.' > image/tmp/foo.txt"
-  in
-    do 
-      system cmd6 >>= \exitCode -> print exitCode
-     
 
 removeImagesCommand :: String -> String
 removeImagesCommand manifest =
