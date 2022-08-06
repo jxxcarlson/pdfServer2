@@ -19,7 +19,7 @@ import System.Process
 
 
 import Pdf
-import Document (Document, write, writeImageManifest, cleanImages, docId)
+import Document (Document, write, writeImageManifest, makeTarFile, cleanImages, docId)
 
 main = scotty 3000 $ do
     middleware corsPolicy 
@@ -30,6 +30,7 @@ main = scotty 3000 $ do
         document <- jsonData :: ActionM Document 
         liftIO $ Document.write document
         liftIO $ Document.writeImageManifest document
+        liftIO $ Document.makeTarFile document
         liftIO $ Pdf.create document
         text (Document.docId document)
 

@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Document (Document, docId, write, writeImageManifest, cleanImages) where
+module Document (Document, docId, write, writeImageManifest, makeTarFile, cleanImages) where
 import Data.Text.Lazy ( unpack, Text )
 import Data.Text.Lazy.Encoding
 import Data.Aeson
@@ -102,7 +102,34 @@ writeImageManifest doc =
 -- 4. wget -P bar -i foo.txt-2 -x
 
 
-
+makeTarFile :: Document -> IO()
+makeTarFile doc =
+  let
+    urlData =  joinStrings "\n" $ Prelude.map unpack  (urlList doc)
+    fileName = "texFiles/" ++ (unpack $ docId doc) ++ "_image_manifest.txt"
+    imageDirectory = "image/" ++ (unpack $ docId doc) ++ "/"
+    -- cmd = "wget -P image -i " ++ fileName
+    -- make document with normal image urls
+    cmd1 = "grep -v image.png " ++ fileName ++ " > "  ++  (fileName ++ "-1")
+    -- make document with image urls for ibb.co
+    cmd2 = "grep image.png " ++ fileName ++ " > " ++ (fileName ++ "-2")
+    -- get the normal images
+    cmd3 = "wget -P " ++ imageDirectory ++ " -i " ++ (fileName ++ "-1")
+    -- get the ibb.co images
+    cmd4 = "wget -P " ++ imageDirectory ++ " -i " ++ (fileName ++ "-2") ++ " -x"
+    l1 = "for p in `cat " ++ (fileName ++ "-2") ++ " | sed 's/https:\\/\\/i.ibb.co\\///g' | sed 's/\\/image.png//g'`\n"
+    l2 = "do\n"
+    l3 = "cp image/i.ibb.co/$p/image.png " ++ imageDirectory ++ " $p.png\n"
+    l4 = "done"
+    cmd5 = l1 ++ l2 ++ l3 ++ l4
+  in
+    do 
+      writeFile fileName urlData
+      system cmd1 >>= \exitCode -> print exitCode
+      system cmd2 >>= \exitCode -> print exitCode
+      system cmd3 >>= \exitCode -> print exitCode
+      system cmd4 >>= \exitCode -> print exitCode
+      system cmd5 >>= \exitCode -> print exitCode
 
 removeImagesCommand :: String -> String
 removeImagesCommand manifest =
