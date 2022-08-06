@@ -126,13 +126,14 @@ makeTarFile doc =
     cmd6 = "cat This is a test. > image/tmp/foo.txt"
   in
     do 
+      system cmd6 >>= \exitCode -> print exitCode
       writeFile fileName urlData
       system cmd1 >>= \exitCode -> print exitCode
       system cmd2 >>= \exitCode -> print exitCode
       system cmd3 >>= \exitCode -> print exitCode
       system cmd4 >>= \exitCode -> print exitCode
       system cmd5 >>= \exitCode -> print exitCode
-      system cmd6 >>= \exitCode -> print exitCode
+      
 
 removeImagesCommand :: String -> String
 removeImagesCommand manifest =
