@@ -134,6 +134,14 @@ makeTarFile doc =
       system cmd4 >>= \exitCode -> print exitCode
       system cmd5 >>= \exitCode -> print exitCode
       
+makeTarFileX :: Document -> IO()
+makeTarFileX doc =
+  let
+    cmd6 = "echo 'This is a test.' > image/tmp/foo.txt"
+  in
+    do 
+      system cmd6 >>= \exitCode -> print exitCode
+     
 
 removeImagesCommand :: String -> String
 removeImagesCommand manifest =
