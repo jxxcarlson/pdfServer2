@@ -123,6 +123,7 @@ makeTarFile doc =
     l3 = "cp image/i.ibb.co/$p/image.png " ++ imageDirectory ++ " $p.png\n"
     l4 = "done"
     cmd5 = l1 ++ l2 ++ l3 ++ l4
+    cmd6 = "cat This is a test. > image/tmp/foo.txt"
   in
     do 
       writeFile fileName urlData
@@ -131,6 +132,7 @@ makeTarFile doc =
       system cmd3 >>= \exitCode -> print exitCode
       system cmd4 >>= \exitCode -> print exitCode
       system cmd5 >>= \exitCode -> print exitCode
+      system cmd6 >>= \exitCode -> print exitCode
 
 removeImagesCommand :: String -> String
 removeImagesCommand manifest =
