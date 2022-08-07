@@ -15,23 +15,22 @@ create :: Document -> IO()
 create document =
     let
         fileName = unpack $ Document.docId document
-        moveDownCmd = "mv texFiles/image texFiles/tmp/image"
+        removeTexFileCmd = "rm texFiles/*.tex"
+        removePdfDetritus = "rm pdfFiles/*.log pdfFiles/*.aux  pdfFiles/*.toc pdfFiles/*.out"
     in
     do
-        createPdf_ fileName
-        -- createPdf_ fileName
-        -- cleanup fileName
-        -- system moveDownCmd >>= \exitCode -> print exitCode
+        createPdf_ fileName 
+        system removePdfDetritus  >>= \exitCode -> print exitCode
+        system removeTexFileCmd   >>= \exitCode -> print exitCode
 
 createPdf_ :: String -> IO ()
 createPdf_ fileName =
     let
         texFile = "texFiles/" ++ fileName
         cmd_ = "xelatex -output-directory=pdfFiles -interaction=nonstopmode " ++ texFile
-        -- cmd_ = "xelatex -interaction=nonstopmode " ++ texFile
         cmd = cmd_ ++ " ; " ++ cmd_
     in
-        system cmd_ >>= \exitCode -> print exitCode
+        system cmd >>= \exitCode -> print exitCode
 
 
 remove :: Text -> IO ()
@@ -51,7 +50,7 @@ cleanup fileName =
         cmd_ f ext = "rm pdfFiles/" ++ f ++ ext
         cmd = cmd_ fileName ".log" ++ ";" 
                ++ cmd_ fileName ".aux" ++ ";" 
-               ++ cmd_ fileName ".out" ++ ";" 
+               ++ cmd_ fileName ".toc" ++ ";" 
     in
         system cmd >>= \exitCode -> print exitCode
 

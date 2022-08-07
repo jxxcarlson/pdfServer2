@@ -91,11 +91,10 @@ prepareData doc =
       l4 = "done"
       copyFilesFromIBBDirToImageDirectory = l1 ++ l2 ++ l3 ++ l4
       cleanup = "rm texFiles/tmp/*; rm texFiles/tmp/image/*"
-      moveUpCmd = "mv texFiles/tmp/image texFiles/image"
-      --cleanManifests "rm texFiles/tmp/*_image_manifest*"
+      cleanManifests = "rm texFiles/tmp/*_manifest.txt*"
   in
     do 
-      --system cleanup  >>= \exitCode -> print exitCode
+      system cleanup  >>= \exitCode -> print exitCode
       writeTeXSourceFile doc
       writeTeXSourceFileTmp doc
       writeFile imageManifest urlData
@@ -103,9 +102,8 @@ prepareData doc =
       system getIBBImageimageManifests >>= \exitCode -> print exitCode
       system getNormalImages >>= \exitCode -> print exitCode
       system getIBBmages >>= \exitCode -> print exitCode
-      --system cleanManifests  >>= \exitCode -> print exitCode
+      system cleanManifests  >>= \exitCode -> print exitCode
       system copyFilesFromIBBDirToImageDirectory >>= \exitCode -> print exitCode
-      -- system moveUpCmd >>= \exitCode -> print exitCode
       
 
 removeImagesCommand :: String -> String

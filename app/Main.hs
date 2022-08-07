@@ -28,7 +28,6 @@ main = scotty 3000 $ do
     post "/pdf" $ do
         
         document <- jsonData :: ActionM Document 
-        -- liftIO $ Document.writeTeXSourceFile document
         liftIO $ Document.prepareData document
         liftIO $ Pdf.create document
         text (Document.docId document)
