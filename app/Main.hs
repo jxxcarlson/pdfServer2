@@ -6,7 +6,7 @@
 
 module Main where
 
-import             Control.Monad.IO.Class (liftIO) -- liftIO :: IO a -> m a
+import Control.Monad.IO.Class (liftIO) -- liftIO :: IO a -> m a
 
 import Web.Scotty
 import Network.HTTP.Types
@@ -16,10 +16,11 @@ import Web.Scotty
 import Network.Wai.Middleware.Cors
 import Network.Wai.Middleware.RequestLogger
 import System.Process
+import Data.List.Utils (replace)
 
-
+import Tar
 import Pdf
-import Document (Document, write, writeImageManifest, makeTarFile, cleanImages, docId)
+import Document (Document, writeTeXSourceFile, prepareData, cleanImages, docId)
 
 main = scotty 3000 $ do
     middleware corsPolicy 
@@ -28,31 +29,26 @@ main = scotty 3000 $ do
     post "/pdf" $ do
         
         document <- jsonData :: ActionM Document 
-        liftIO $ Document.write document
-        liftIO $ Document.writeImageManifest document
+        liftIO $ Document.prepareData document
         liftIO $ Pdf.create document
-        text (Document.docId document)
+        text (Document.docId document)   
 
     post "/tar" $ do
-        
         document <- jsonData :: ActionM Document 
-        liftIO $ Document.write document
-        liftIO $ Document.writeImageManifest document
-        liftIO $ Document.makeTarFile document
-        text (Document.docId document)
+        liftIO $ Document.prepareData document
+        liftIO $ Tar.create document
+        text (Document.docId document)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 
-    post "/clean/:id" $ do
-       docId <- param "id" 
-       liftIO $ Document.cleanImages docId   
-       liftIO $ Pdf.remove docId                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
-
-    get "/pdflink/:id" $ do
-        docId <- param "id"
-        html $ pack $ Pdf.makeWebPage "http://localhost:3000" docId
 
     get "/pdf/:id" $ do
         docId <- param "id"
-        file ("pdfFiles/" ++ docId ++ ".pdf")
+        file ("pdfFiles/" ++ (replace ".tex" ".pdf" docId)) 
+        -- print "/pdf/:id" ++ (replace ".tex" ".pdf" docId)
+
+    get "/tar/:id" $ do
+        docId <- param "id"
+        file ("pdfFiles/" ++ (replace ".tex" ".tar" docId ))
+
 
     get "/hello" $ do
         html $ mconcat ["Yes, I am still here\n"]

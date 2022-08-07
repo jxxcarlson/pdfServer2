@@ -1,7 +1,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 
 
-module Pdf (create,   makeWebPage) where
+module Tar (create,   makeWebPage) where
 
 import Data.Text.Lazy (Text, unpack)
 import System.Process
@@ -15,23 +15,26 @@ create :: Document -> IO()
 create document =
     let
         fileName = unpack $ Document.docId document
+        tarFile = replace ".tex" ".tar" fileName
         removeTexFileCmd = "rm texFiles/*.tex"
         removePdfDetritus = "rm pdfFiles/*.log pdfFiles/*.aux  pdfFiles/*.toc pdfFiles/*.out"
+        createTarFile = "tar -cf pdfFiles/" ++ tarFile ++ " -C texFiles/tmp ."
     in
-    do
-        createPdf_ fileName  >>= \exitCode -> print exitCode
-        system removePdfDetritus  >>= \exitCode -> print exitCode
-        system removeTexFileCmd   >>= \exitCode -> print exitCode
+    (system createTarFile) >>= \exitCode -> print exitCode
+        -- system removePdfDetritus  >>= \exitCode -> print exitCode
+        -- system removeTexFileCmd   >>= \exitCode -> print exitCode
 
+ -- removeTexFileCmd   >>= \exitCode -> print exitCode
 
-createPdf_ :: String -> IO ()
-createPdf_ fileName =
-    let
-        texFile = "texFiles/" ++ fileName
-        cmd_ = "xelatex -output-directory=pdfFiles -interaction=nonstopmode " ++ texFile
-        cmd = cmd_ ++ " ; " ++ cmd_
-    in
-        system cmd >>= \exitCode -> print exitCode
+-- createTarFile :: String -> IO ()
+-- createTarFile fileName_ = 
+--     let 
+--        fileName = replace "*.tex" "*.tar" fileName_
+--         -- createTarFile = "tar -cf pdfFiles/" ++ " texFiles/tmp foo.tar" 
+--        createTarFile = tar -cf pdfFiles/backup.tar texFiles/tmp
+--     in
+--         system createTarFile   >>= \exitCode -> print exitCode
+
 
 -- HELPERS 
 
