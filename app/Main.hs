@@ -30,12 +30,7 @@ main = scotty 3000 $ do
         document <- jsonData :: ActionM Document 
         liftIO $ Document.prepareData document
         liftIO $ Pdf.create document
-        text (Document.docId document)
-
-    post "/clean/:id" $ do
-       docId <- param "id" 
-       liftIO $ Document.cleanImages docId   
-       liftIO $ Pdf.remove docId                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+        text (Document.docId document)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
 
     get "/pdflink/:id" $ do
         docId <- param "id"

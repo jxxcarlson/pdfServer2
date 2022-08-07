@@ -1,7 +1,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 
 
-module Pdf (create,  cleanup, remove, makeWebPage) where
+module Pdf (create,   makeWebPage) where
 
 import Data.Text.Lazy (Text, unpack)
 import System.Process
@@ -29,28 +29,6 @@ createPdf_ fileName =
         texFile = "texFiles/" ++ fileName
         cmd_ = "xelatex -output-directory=pdfFiles -interaction=nonstopmode " ++ texFile
         cmd = cmd_ ++ " ; " ++ cmd_
-    in
-        system cmd >>= \exitCode -> print exitCode
-
-
-remove :: Text -> IO ()
-remove fileName =
-    let
-        f = unpack fileName
-        cmd1 = "rm texFiles/" ++ f ++ ".tex"
-        cmd2 = "rm pdfFiles/" ++ f ++ ".pdf"
-        cmd3 = "rm texFiles/" ++ f ++ "_image_manifest.txt"
-        cmd = cmd1  ++ "; " ++ cmd2++ "; " ++ cmd3
-    in
-        system cmd >>= \exitCode -> print exitCode
-
-cleanup :: String -> IO ()
-cleanup fileName =
-    let
-        cmd_ f ext = "rm pdfFiles/" ++ f ++ ext
-        cmd = cmd_ fileName ".log" ++ ";" 
-               ++ cmd_ fileName ".aux" ++ ";" 
-               ++ cmd_ fileName ".toc" ++ ";" 
     in
         system cmd >>= \exitCode -> print exitCode
 
