@@ -6,7 +6,7 @@
 
 module Main where
 
-import             Control.Monad.IO.Class (liftIO) -- liftIO :: IO a -> m a
+import Control.Monad.IO.Class (liftIO) -- liftIO :: IO a -> m a
 
 import Web.Scotty
 import Network.HTTP.Types
@@ -18,6 +18,7 @@ import Network.Wai.Middleware.RequestLogger
 import System.Process
 import Data.List.Utils (replace)
 
+import Tar
 import Pdf
 import Document (Document, writeTeXSourceFile, prepareData, cleanImages, docId)
 
@@ -30,15 +31,22 @@ main = scotty 3000 $ do
         document <- jsonData :: ActionM Document 
         liftIO $ Document.prepareData document
         liftIO $ Pdf.create document
-        text (Document.docId document)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
+        text (Document.docId document)   
 
-    get "/pdflink/:id" $ do
-        docId <- param "id"
-        html $ pack $ Pdf.makeWebPage "http://localhost:3000" docId
+    post "/tar" $ do
+        document <- jsonData :: ActionM Document 
+        liftIO $ Document.prepareData document
+        liftIO $ Tar.create document
+        text (Document.docId document)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 
     get "/pdf/:id" $ do
         docId <- param "id"
-        file ("pdfFiles/" ++ (replace ".tex" ".pdf" docId ))
+        file ("pdfFiles/" ++ (replace ".tex" ".pdf" docId)) 
+        -- print "/pdf/:id" ++ (replace ".tex" ".pdf" docId)
+
+    get "/tar/:id" $ do
+        docId <- param "id"
+        file ("pdfFiles/" ++ (replace ".tex" ".tar" docId ))
 
 
     get "/hello" $ do
