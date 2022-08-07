@@ -40,12 +40,12 @@ instance ToJSON Document where
                  "urlList" .= imageUrls]
 
 
-fixGraphicsPath = replace "\\graphicspath{ {image/} }" "\\graphicspath{{texFiles/tmp/image/}}"
+fixGraphicsPath = replace "\\graphicspath{ {image/} }" "\\graphicspath{{inbox/tmp/image/}}"
 
 writeTeXSourceFile :: Document -> IO()
 writeTeXSourceFile doc = 
   let
-    texFile = "texFiles/" ++ (unpack $ docId doc) 
+    texFile = "inbox/" ++ (unpack $ docId doc) 
     contents = fixGraphicsPath $ unpack $ content doc
   in
     writeFile texFile contents
@@ -53,7 +53,7 @@ writeTeXSourceFile doc =
 writeTeXSourceFileTmp :: Document -> IO()
 writeTeXSourceFileTmp doc = 
   let
-    texFile = "texFiles/tmp/" ++ (unpack $ docId doc) 
+    texFile = "inbox/tmp/" ++ (unpack $ docId doc) 
     contents = unpack $ content doc
   in
     writeFile texFile contents
@@ -61,7 +61,7 @@ writeTeXSourceFileTmp doc =
 cleanImages :: Text -> IO()
 cleanImages docId =
      do
-       let  manifestimageManifest = "texFiles/" ++ (unpack docId) ++ "_image_manifest.txt"
+       let  manifestimageManifest = "inbox/" ++ (unpack docId) ++ "_image_manifest.txt"
        manifest <- readFile manifestimageManifest 
        let commands = Document.removeImagesCommand manifest  
        system commands >>= \exitCode -> print exitCode  
@@ -72,9 +72,9 @@ prepareData :: Document -> IO()
 prepareData doc =
   let
       urlData =  joinStrings "\n" $ Prelude.map unpack  (urlList doc)
-      imageManifest = "texFiles/tmp/" ++ (unpack $ docId doc) ++ "_image_manifest.txt"
+      imageManifest = "inbox/tmp/" ++ (unpack $ docId doc) ++ "_image_manifest.txt"
       -- imageDirectory1 = "image/" ++ (unpack $ docId doc) ++ ""
-      imageDirectory = "texFiles/tmp/image/"
+      imageDirectory = "inbox/tmp/image/"
       -- cmd = "wget -P image -i " ++ imageManifest
       -- make document with normal image urls
       getNormalImageimageManifests = "grep -v image.png " ++ imageManifest ++ " > "  ++  (imageManifest ++ "-1")
@@ -90,8 +90,8 @@ prepareData doc =
       l3b = "cp image/i.ibb.co/$p/image.jpb " ++ imageDirectory ++ " $p.jpg\n"
       l4 = "done"
       copyFilesFromIBBDirToImageDirectory = l1 ++ l2 ++ l3 ++ l4
-      cleanup = "rm texFiles/tmp/*; rm texFiles/tmp/image/*"
-      cleanManifests = "rm texFiles/tmp/*_manifest.txt*"
+      cleanup = "rm inbox/tmp/*; rm inbox/tmp/image/*"
+      cleanManifests = "rm inbox/tmp/*_manifest.txt*"
   in
     do 
       system cleanup  >>= \exitCode -> print exitCode

@@ -42,12 +42,12 @@ main = scotty 3000 $ do
 
     get "/pdf/:id" $ do
         docId <- param "id"
-        file ("pdfFiles/" ++ (replace ".tex" ".pdf" docId)) 
+        file ("outbox/" ++ (replace ".tex" ".pdf" docId)) 
         -- print "/pdf/:id" ++ (replace ".tex" ".pdf" docId)
 
     get "/tar/:id" $ do
         docId <- param "id"
-        file ("pdfFiles/" ++ (replace ".tex" ".tar" docId ))
+        file ("outbox/" ++ (replace ".tex" ".tar" docId ))
 
 
     get "/hello" $ do
@@ -57,7 +57,7 @@ main = scotty 3000 $ do
     post "/hello" $ do
        text "Yes, I am still here\n"
 
-    middleware $ staticPolicy (noDots >-> addBase "pdfFiles")
+    middleware $ staticPolicy (noDots >-> addBase "outbox")
 
 
 

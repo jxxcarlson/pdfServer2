@@ -16,9 +16,9 @@ create document =
     let
         fileName = unpack $ Document.docId document
         tarFile = replace ".tex" ".tar" fileName
-        removeTexFileCmd = "rm texFiles/*.tex"
-        removePdfDetritus = "rm pdfFiles/*.log pdfFiles/*.aux  pdfFiles/*.toc pdfFiles/*.out"
-        createTarFile = "tar -cf pdfFiles/" ++ tarFile ++ " -C texFiles/tmp ."
+        removeTexFileCmd = "rm inbox/*.tex"
+        removePdfDetritus = "rm outbox/*.log outbox/*.aux  outbox/*.toc outbox/*.out"
+        createTarFile = "tar -cf outbox/" ++ tarFile ++ " -C inbox/tmp ."
     in
     (system createTarFile) >>= \exitCode -> print exitCode
         -- system removePdfDetritus  >>= \exitCode -> print exitCode
@@ -30,8 +30,8 @@ create document =
 -- createTarFile fileName_ = 
 --     let 
 --        fileName = replace "*.tex" "*.tar" fileName_
---         -- createTarFile = "tar -cf pdfFiles/" ++ " texFiles/tmp foo.tar" 
---        createTarFile = tar -cf pdfFiles/backup.tar texFiles/tmp
+--         -- createTarFile = "tar -cf outbox/" ++ " inbox/tmp foo.tar" 
+--        createTarFile = tar -cf outbox/backup.tar inbox/tmp
 --     in
 --         system createTarFile   >>= \exitCode -> print exitCode
 

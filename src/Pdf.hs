@@ -15,8 +15,8 @@ create :: Document -> IO()
 create document =
     let
         fileName = unpack $ Document.docId document
-        removeTexFileCmd = "rm texFiles/*.tex"
-        removePdfDetritus = "rm pdfFiles/*.log pdfFiles/*.aux  pdfFiles/*.toc pdfFiles/*.out"
+        removeTexFileCmd = "rm inbox/*.tex"
+        removePdfDetritus = "rm outbox/*.log outbox/*.aux  outbox/*.toc outbox/*.out"
     in
     do
         createPdf_ fileName  >>= \exitCode -> print exitCode
@@ -27,8 +27,8 @@ create document =
 createPdf_ :: String -> IO ()
 createPdf_ fileName =
     let
-        texFile = "texFiles/" ++ fileName
-        cmd_ = "xelatex -output-directory=pdfFiles -interaction=nonstopmode " ++ texFile
+        texFile = "inbox/" ++ fileName
+        cmd_ = "xelatex -output-directory=outbox -interaction=nonstopmode " ++ texFile
         cmd = cmd_ ++ " ; " ++ cmd_
     in
         system cmd >>= \exitCode -> print exitCode
