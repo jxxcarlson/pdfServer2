@@ -16,10 +16,10 @@ import Web.Scotty
 import Network.Wai.Middleware.Cors
 import Network.Wai.Middleware.RequestLogger
 import System.Process
-
+import Data.List.Utils (replace)
 
 import Pdf
-import Document (Document, write, writeImageManifest, makeTarFile, cleanImages, docId)
+import Document (Document, writeTeXSourceFile, prepareData, cleanImages, docId)
 
 main = scotty 3000 $ do
     middleware corsPolicy 
@@ -28,9 +28,8 @@ main = scotty 3000 $ do
     post "/pdf" $ do
         
         document <- jsonData :: ActionM Document 
-        liftIO $ Document.write document
-        liftIO $ Document.makeTarFile document
-        liftIO $ Document.writeImageManifest document
+        -- liftIO $ Document.writeTeXSourceFile document
+        liftIO $ Document.prepareData document
         liftIO $ Pdf.create document
         text (Document.docId document)
 
@@ -45,7 +44,8 @@ main = scotty 3000 $ do
 
     get "/pdf/:id" $ do
         docId <- param "id"
-        file ("pdfFiles/" ++ docId ++ ".pdf")
+        file ("pdfFiles/" ++ (replace ".tex" ".pdf" docId ))
+
 
     get "/hello" $ do
         html $ mconcat ["Yes, I am still here\n"]

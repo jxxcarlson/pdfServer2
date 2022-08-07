@@ -1,12 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Document (Document, docId, write, writeImageManifest, makeTarFile, cleanImages) where
+module Document (Document, fixGraphicsPath, docId, writeTeXSourceFile, prepareData, cleanImages) where
 import Data.Text.Lazy ( unpack, Text )
 import Data.Text.Lazy.Encoding
 import Data.Aeson
 import Control.Applicative
 import System.Process
 import Data.List.Split
+import Data.List.Utils (replace)
 
 -- Define the Article constructor
 -- e.g. Article 12 "some title" "some body text"
@@ -29,7 +30,7 @@ instance FromJSON Document where
                             v .: "id" <*> 
                             v .:  "content" <*>
                             v .: "urlList"
-
+ 
 
 -- Tell Aeson how to convert a Document object to a JSON string.
 instance ToJSON Document where
@@ -39,104 +40,72 @@ instance ToJSON Document where
                  "urlList" .= imageUrls]
 
 
-write :: Document -> IO()
-write doc = 
+fixGraphicsPath = replace "\\graphicspath{ {image/} }" "\\graphicspath{{texFiles/tmp/image/}}"
+
+writeTeXSourceFile :: Document -> IO()
+writeTeXSourceFile doc = 
   let
-    fileName = "texFiles/" ++ (unpack $ docId doc) ++ ".tex"
+    texFile = "texFiles/" ++ (unpack $ docId doc) 
+    contents = fixGraphicsPath $ unpack $ content doc
+  in
+    writeFile texFile contents
+
+writeTeXSourceFileTmp :: Document -> IO()
+writeTeXSourceFileTmp doc = 
+  let
+    texFile = "texFiles/tmp/" ++ (unpack $ docId doc) 
     contents = unpack $ content doc
   in
-    writeFile fileName contents
+    writeFile texFile contents
 
 cleanImages :: Text -> IO()
 cleanImages docId =
      do
-       let  manifestFileName = "texFiles/" ++ (unpack docId) ++ "_image_manifest.txt"
-       manifest <- readFile manifestFileName 
+       let  manifestimageManifest = "texFiles/" ++ (unpack docId) ++ "_image_manifest.txt"
+       manifest <- readFile manifestimageManifest 
        let commands = Document.removeImagesCommand manifest  
        system commands >>= \exitCode -> print exitCode  
 
 
-writeImageManifest :: Document -> IO()
-writeImageManifest doc =
+
+prepareData :: Document -> IO()
+prepareData doc =
   let
-    texFileName = "texFiles/tmp/" ++ (unpack $ docId doc) 
-    contents = unpack $ content doc
-    urlData =  joinStrings "\n" $ Prelude.map unpack  (urlList doc)
-    fileName = "texFiles/" ++ (unpack $ docId doc) ++ "_image_manifest.txt"
-    -- cmd = "wget -P image -i " ++ fileName
-    -- make document with normal image urls
-    cmd1 = "grep -v image.png " ++ fileName ++ " > "  ++  (fileName ++ "-1")
-    -- make documet with image urls for ibb.co
-    cmd2 = "grep image.png " ++ fileName ++ " > " ++ (fileName ++ "-2")
-    -- get the normal images
-    cmd3 = "wget -P texFiles/tmp/image -i " ++ (fileName ++ "-1")
-    -- get the ibb.co images
-    cmd4 = "wget -P texFiles/tmp/image -i " ++ (fileName ++ "-2") ++ " -x"
-    l1 = "for p in `cat " ++ (fileName ++ "-2") ++ " | sed 's/https:\\/\\/i.ibb.co\\///g' | sed 's/\\/image.png//g'`\n"
-    l2 = "do\n"
-    l3 = "cp image/i.ibb.co/$p/image.png image/$p.png\n"
-    l4 = "done"
-    cmd5 = l1 ++ l2 ++ l3 ++ l4
-    rmOldFiles = "rm texFiles/tmp/*.tex; rm texFiles/tmp/image/*"
+      urlData =  joinStrings "\n" $ Prelude.map unpack  (urlList doc)
+      imageManifest = "texFiles/tmp/" ++ (unpack $ docId doc) ++ "_image_manifest.txt"
+      -- imageDirectory1 = "image/" ++ (unpack $ docId doc) ++ ""
+      imageDirectory = "texFiles/tmp/image/"
+      -- cmd = "wget -P image -i " ++ imageManifest
+      -- make document with normal image urls
+      getNormalImageimageManifests = "grep -v image.png " ++ imageManifest ++ " > "  ++  (imageManifest ++ "-1")
+      -- make document with image urls for ibb.co
+      getIBBImageimageManifests = "grep image.png " ++ imageManifest ++ " > " ++ (imageManifest ++ "-2")
+      -- get the normal images
+      getNormalImages = "wget -P " ++ imageDirectory ++ " -i " ++ (imageManifest ++ "-1")
+      -- get the ibb.co images
+      getIBBmages = "wget -P " ++ imageDirectory ++ " -i " ++ (imageManifest ++ "-2") ++ " -x"
+      l1 = "for p in `cat " ++ (imageManifest ++ "-2") ++ " | sed 's/https:\\/\\/i.ibb.co\\///g' | sed 's/\\/image.png//g'`\n"
+      l2 = "do\n"
+      l3 = "cp image/i.ibb.co/$p/image.png " ++ imageDirectory ++ " $p.png\n"
+      l3b = "cp image/i.ibb.co/$p/image.jpb " ++ imageDirectory ++ " $p.jpg\n"
+      l4 = "done"
+      copyFilesFromIBBDirToImageDirectory = l1 ++ l2 ++ l3 ++ l4
+      cleanup = "rm texFiles/tmp/*; rm texFiles/tmp/image/*"
+      moveUpCmd = "mv texFiles/tmp/image texFiles/image"
+      --cleanManifests "rm texFiles/tmp/*_image_manifest*"
   in
     do 
-      system rmOldFiles >>= \exitCode -> print exitCode
-      writeFile fileName urlData
-      writeFile texFileName contents
-      system cmd1 >>= \exitCode -> print exitCode
-      system cmd2 >>= \exitCode -> print exitCode
-      system cmd3 >>= \exitCode -> print exitCode
-      system cmd4 >>= \exitCode -> print exitCode
-      system cmd5 >>= \exitCode -> print exitCode
-
-
--- wget -Px bar -i foo.txt
--- wget -P bar -i foo.txt -x
-
--- foo.txt:
--- https://psurl.s3.amazonaws.com/images/jc/sinc2-bcbf.png
--- https://psurl.s3.amazonaws.com/images/jc/beats-eca1.png
--- https://pentucketnews.com/wp-content/uploads/2014/11/Classic.jpg
--- https://i.ibb.co/T0wS1CD/image.png
--- https://i.ibb.co/Fs0xQtq/image.png
-
--- cp bar/i.ibb.co/T0wS1CD/image.png bar/T0wS1CD.png
--- 1. grep -v image.png foo.txt > foo.txt-1
--- 2. grep image.png foo.txt > foo.txt-2
--- 3. wget -P bar -i foo.txt-1
--- 4. wget -P bar -i foo.txt-2 -x
-
-
-makeTarFile :: Document -> IO()
-makeTarFile doc =
-  let
-    urlData =  joinStrings "\n" $ Prelude.map unpack  (urlList doc)
-    fileName = "texFiles/" ++ (unpack $ docId doc) ++ "_image_manifest.txt"
-    -- imageDirectory1 = "image/" ++ (unpack $ docId doc) ++ ""
-    imageDirectory = "image/tmp"
-    -- cmd = "wget -P image -i " ++ fileName
-    -- make document with normal image urls
-    cmd1 = "grep -v image.png " ++ fileName ++ " > "  ++  (fileName ++ "-1")
-    -- make document with image urls for ibb.co
-    cmd2 = "grep image.png " ++ fileName ++ " > " ++ (fileName ++ "-2")
-    -- get the normal images
-    cmd3 = "wget -P " ++ imageDirectory ++ " -i " ++ (fileName ++ "-1")
-    -- get the ibb.co images
-    cmd4 = "wget -P " ++ imageDirectory ++ " -i " ++ (fileName ++ "-2") ++ " -x"
-    l1 = "for p in `cat " ++ (fileName ++ "-2") ++ " | sed 's/https:\\/\\/i.ibb.co\\///g' | sed 's/\\/image.png//g'`\n"
-    l2 = "do\n"
-    l3 = "cp image/i.ibb.co/$p/image.png " ++ imageDirectory ++ " $p.png\n"
-    l4 = "done"
-    cmd5 = l1 ++ l2 ++ l3 ++ l4
-    -- cmd6 = "echo 'This is a test.' > image/tmp/foobar.txt"
-  in
-    do 
-      writeFile fileName urlData
-      system cmd1 >>= \exitCode -> print exitCode
-      system cmd2 >>= \exitCode -> print exitCode
-      system cmd3 >>= \exitCode -> print exitCode
-      system cmd4 >>= \exitCode -> print exitCode
-      system cmd5 >>= \exitCode -> print exitCode
+      --system cleanup  >>= \exitCode -> print exitCode
+      writeTeXSourceFile doc
+      writeTeXSourceFileTmp doc
+      writeFile imageManifest urlData
+      system getNormalImageimageManifests >>= \exitCode -> print exitCode
+      system getIBBImageimageManifests >>= \exitCode -> print exitCode
+      system getNormalImages >>= \exitCode -> print exitCode
+      system getIBBmages >>= \exitCode -> print exitCode
+      --system cleanManifests  >>= \exitCode -> print exitCode
+      system copyFilesFromIBBDirToImageDirectory >>= \exitCode -> print exitCode
+      -- system moveUpCmd >>= \exitCode -> print exitCode
       
 
 removeImagesCommand :: String -> String
