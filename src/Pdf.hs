@@ -19,9 +19,10 @@ create document =
         removePdfDetritus = "rm pdfFiles/*.log pdfFiles/*.aux  pdfFiles/*.toc pdfFiles/*.out"
     in
     do
-        createPdf_ fileName 
+        createPdf_ fileName  >>= \exitCode -> print exitCode
         system removePdfDetritus  >>= \exitCode -> print exitCode
         system removeTexFileCmd   >>= \exitCode -> print exitCode
+
 
 createPdf_ :: String -> IO ()
 createPdf_ fileName =

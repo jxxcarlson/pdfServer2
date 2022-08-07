@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 766b02b783609d5638fc1dd7ae7d8fe35691986b76559abb512303edd33f7c20
+-- hash: 3c80d2433592b4736c049f7c684f68e78692433c867bdae548a23ad4cc336143
 
 name:           pdfServerScotty
 version:        0.1.0.0
@@ -29,6 +29,7 @@ library
   exposed-modules:
       Document
       Pdf
+      Tar
   other-modules:
       Paths_pdfServerScotty
   hs-source-dirs:
