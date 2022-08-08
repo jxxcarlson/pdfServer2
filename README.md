@@ -1,7 +1,7 @@
 # PdfServer
 
 pdfServer runs  as a print server for LaTeX files.
-It is written in 165 lines of Haskel code using
+It is written in 165 lines of Haskell code using
 the Scotty web server library.
 
 ## Description
