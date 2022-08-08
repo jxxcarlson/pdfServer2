@@ -20,7 +20,7 @@ import Data.List.Utils (replace)
 
 import Tar
 import Pdf
-import Document (Document, writeTeXSourceFile, prepareData, cleanImages, docId)
+import Document (Document, writeTeXSourceFile, prepareData, docId)
 
 main = scotty 3000 $ do
     middleware corsPolicy 
@@ -39,7 +39,6 @@ main = scotty 3000 $ do
         liftIO $ Tar.create document
         text (Document.docId document)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 
-
     get "/pdf/:id" $ do
         docId <- param "id"
         file ("outbox/" ++ (replace ".tex" ".pdf" docId)) 
@@ -48,7 +47,6 @@ main = scotty 3000 $ do
     get "/tar/:id" $ do
         docId <- param "id"
         file ("outbox/" ++ (replace ".tex" ".tar" docId ))
-
 
     get "/hello" $ do
         html $ mconcat ["Yes, I am still here\n"]

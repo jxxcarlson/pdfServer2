@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Document (Document, fixGraphicsPath, docId, writeTeXSourceFile, prepareData, cleanImages) where
+module Document (Document, fixGraphicsPath, docId, writeTeXSourceFile, prepareData) where
 import Data.Text.Lazy ( unpack, Text )
 import Data.Text.Lazy.Encoding
 import Data.Aeson
@@ -58,16 +58,6 @@ writeTeXSourceFileTmp doc =
   in
     writeFile texFile contents
 
-cleanImages :: Text -> IO()
-cleanImages docId =
-     do
-       let  manifestimageManifest = "inbox/" ++ (unpack docId) ++ "_image_manifest.txt"
-       manifest <- readFile manifestimageManifest 
-       let commands = Document.removeImagesCommand manifest  
-       system commands >>= \exitCode -> print exitCode  
-
-
-
 prepareData :: Document -> IO()
 prepareData doc =
   let
@@ -105,27 +95,6 @@ prepareData doc =
       system cleanManifests  >>= \exitCode -> print exitCode
       system copyFilesFromIBBDirToImageDirectory >>= \exitCode -> print exitCode
       
-
-removeImagesCommand :: String -> String
-removeImagesCommand manifest =
-    joinStrings "; " $ map removeImageCommand $ lines manifest  
-
-
-removeImageCommand :: String -> String
-removeImageCommand imageName = 
-    "rm image/" ++ (getImageName imageName)
-
-getImageName1 :: String -> String
-getImageName1 str = last $ splitOn "/" str
-
-getImageName :: String -> String
-getImageName str =
-  case reverse $ splitOn "/" str of
-    ("image.png":url:rest) -> url ++ ".png"
-    (last:rest) -> last
-    _ -> "nothing.png"
-
-
 
 joinStrings :: String -> [String] -> String
 joinStrings separator [] = ""
