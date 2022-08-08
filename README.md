@@ -1,16 +1,47 @@
-# pdfServer
+# PdfServer
 
-A start on server to produce PDF files from LaTeX files.  
+pdfServer is a small Haskell server which runs
+as a print server for LaTeX files.
 
-- The server accepts POST requests 
-at localhost:3000/pdf with JSON data like that below, stores the content
-in a file, e.g., `A2.tex`, generates a PDF file, e.g., `A2.pdf`, and, if successful,
-returns the id of the document as a string, which in this case is "A2".
+## Description
 
-- Upon receipt of the reply from the POST request, the client can make a 
-  GET request `/pdf/:id` to retrieve the PDF files.  In the case at hand, 
-  one makes the GET request `/pdf/A2`.
+The server accepts POST requests at /pdf/ with payload 
+a record containing a document id, a title, and the 
+contents of a LaTeX file.
 
-{"id": "A2", "title": "Test", "content": "\\documentclass{article}\n\\begin{document}\n$a^2 + b^2 = c^2$\n\\end{document}\n"}
+Upon receipt of such a request, the server runs
+xelatex on the LaTeX file, after which
+GET requests to /pdf/:id will return 
+a link the correspoing PDF file.
+
+These days the id is a normalized version of the 
+document title.  Thus "Introduction to Quantum Mechanics"
+will have "introduction-to-quantum-mechanics.tex" 
+as id.
 
 
+```
+{"id": "test.tex", "title": "Test", "content": "\\documentclass{article}\n\\begin{document}\n$a^2 + b^2 = c^2$\n\\end{document}\n"}
+```
+
+## Tar Archives
+
+POST requests to /tar/ with the same payload as to /pdf/
+will generate a tar archive with the LaTeX document
+and a subfolder "image" with a copy of each of the
+image files found in the document. After processing,
+GET reqeusts to /tar/:id will return a copy of the 
+tar archive.  
+
+
+## Operation of the server
+
+The server is installed as `http://pdfServ.app` at
+my DigitalOcean "rose" box.
+
+**To update the server:**
+
+- `git pull` if need be
+- `stack build`
+- `stack ghc app/Main.hs, mv app/Main pdfServer`
+- `reboot`
