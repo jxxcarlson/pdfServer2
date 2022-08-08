@@ -1,6 +1,6 @@
 # PdfServer
 
-pdfServer is a small Haskell server which runs
+pdfServer runs
 as a print server for LaTeX files.
 
 ## Description
@@ -12,7 +12,7 @@ contents of a LaTeX file.
 Upon receipt of such a request, the server runs
 xelatex on the LaTeX file, after which
 GET requests to /pdf/:id will return 
-a link the correspoing PDF file.
+a link the corresponding PDF file.
 
 These days the id is a normalized version of the 
 document title.  Thus "Introduction to Quantum Mechanics"
@@ -21,7 +21,7 @@ as id.
 
 
 ```
-{"id": "test.tex", "title": "Test", "content": "\\documentclass{article}\n\\begin{document}\n$a^2 + b^2 = c^2$\n\\end{document}\n"}
+{"id": "test-document.tex", "title": "Test Document", "content": "\\documentclass{article}\n\\begin{document}\n$a^2 + b^2 = c^2$\n\\end{document}\n"}
 ```
 
 ## Tar Archives
