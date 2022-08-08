@@ -27,7 +27,7 @@ as id.
 ## Tar Archives
 
 POST requests to /tar/ with the same payload as to /pdf/
-will generate a tar archive with the LaTeX document
+will generate a tar archive with contenta the LaTeX document
 and a subfolder "image" with a copy of each of the
 image files found in the document. After processing,
 GET reqeusts to /tar/:id will return a copy of the 
@@ -45,3 +45,8 @@ my DigitalOcean "rose" box.
 - `stack build`
 - `stack ghc app/Main.hs, mv app/Main pdfServer`
 - `reboot`
+
+## Haskell notes
+ 
+- `stack install MissingH` is needed
+- `hoogle`
