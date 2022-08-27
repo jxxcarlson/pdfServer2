@@ -27,9 +27,8 @@ urlList (Document _  _ urlList _) = urlList
 packageList :: Document -> [Text]
 packageList (Document _  _ _ packageList) = packageList
 
--- packagePaths :: Document -> String
--- packagePaths = 
---   joinStrings " " (unpack $ packageList)
+packagePaths doc = 
+  (joinStrings " " $ fmap (\s -> "package/" ++ s) $ fmap unpack $ packageList $ doc)
 
 -- Tell Aeson how to create a Document object from JSON string.
 instance FromJSON Document where
@@ -72,7 +71,7 @@ prepareData :: Document -> IO()
 prepareData doc =
   let
       urlData =  joinStrings "\n" $ Prelude.map unpack  (urlList doc)
-      -- preparePackages = "mv " (packageList doc) "inbox/tmp/"
+      preparePackages = "mv " ++ (packagePaths doc) ++ " inbox/tmp/"
       imageManifest = "inbox/tmp/" ++ (unpack $ docId doc) ++ "_image_manifest.txt"
       -- imageDirectory1 = "image/" ++ (unpack $ docId doc) ++ ""
       imageDirectory = "inbox/tmp/image/"
@@ -99,7 +98,7 @@ prepareData doc =
       writeTeXSourceFile doc
       writeTeXSourceFileTmp doc
       writeFile imageManifest urlData
-     --  system preparePackages
+      system preparePackages
       system getNormalImageimageManifests >>= \exitCode -> print exitCode
       system getIBBImageimageManifests >>= \exitCode -> print exitCode
       system getNormalImages >>= \exitCode -> print exitCode
