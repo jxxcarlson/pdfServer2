@@ -11,33 +11,43 @@ import Data.List.Utils (replace)
 
 -- Define the Article constructor
 -- e.g. Article 12 "some title" "some body text"
-data Document = Document Text Text [Text] -- id content imageUrls
+data Document = Document Text Text [Text] [Text]-- id content imageUrls packageList
      deriving (Show)
 
 
 docId :: Document -> Text
-docId (Document id _ _) = id
+docId (Document id _ _ _) = id
 
 content :: Document -> Text
-content (Document _ content _ ) = content
+content (Document _ content _ _ ) = content
 
 urlList :: Document -> [Text]
-urlList (Document _  _ urlList ) = urlList
+urlList (Document _  _ urlList _) = urlList
+
+packageList :: Document -> [Text]
+packageList (Document _  _ _ packageList) = packageList
+
+-- packagePaths :: Document -> String
+-- packagePaths = 
+--   joinStrings " " (unpack $ packageList)
 
 -- Tell Aeson how to create a Document object from JSON string.
 instance FromJSON Document where
      parseJSON (Object v) = Document <$>
                             v .: "id" <*> 
-                            v .:  "content" <*>
-                            v .: "urlList"
+                            v .: "content" <*>
+                            v .: "urlList" <*>
+                            v .: "packageList"
  
 
 -- Tell Aeson how to convert a Document object to a JSON string.
 instance ToJSON Document where
-     toJSON (Document id content imageUrls) =
+     toJSON (Document id content imageUrls packageList) =
          object ["id" .= id,
                  "content" .= content,
-                 "urlList" .= imageUrls]
+                 "urlList" .= imageUrls,
+                 "packageList" .= packageList
+                 ]
 
 
 fixGraphicsPath = replace "\\graphicspath{ {image/} }" "\\graphicspath{{inbox/tmp/image/}}"
@@ -62,6 +72,7 @@ prepareData :: Document -> IO()
 prepareData doc =
   let
       urlData =  joinStrings "\n" $ Prelude.map unpack  (urlList doc)
+      -- preparePackages = "mv " (packageList doc) "inbox/tmp/"
       imageManifest = "inbox/tmp/" ++ (unpack $ docId doc) ++ "_image_manifest.txt"
       -- imageDirectory1 = "image/" ++ (unpack $ docId doc) ++ ""
       imageDirectory = "inbox/tmp/image/"
@@ -88,6 +99,7 @@ prepareData doc =
       writeTeXSourceFile doc
       writeTeXSourceFileTmp doc
       writeFile imageManifest urlData
+     --  system preparePackages
       system getNormalImageimageManifests >>= \exitCode -> print exitCode
       system getIBBImageimageManifests >>= \exitCode -> print exitCode
       system getNormalImages >>= \exitCode -> print exitCode
