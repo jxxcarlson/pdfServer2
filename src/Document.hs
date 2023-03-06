@@ -87,9 +87,11 @@ writeTeXSourceFileTmp doc =
   in
     writeFile texFile contents
 
+imageDirectory = "inbox/tmp/image/"
+
 downloadImage :: ImageElement -> IO (GHC.IO.Exception.ExitCode)
 downloadImage element =
-   system ("wget -P inbox/tmp/image -O " ++ (filename element) ++ " " ++  (url element))
+   system ("wget -O " ++ imageDirectory ++ (filename element) ++ " " ++  (url element))
 
 
 prepareData :: Document -> IO()
@@ -99,7 +101,7 @@ prepareData doc =
       preparePackages = "cp " ++ (packagePaths doc) ++ " inbox/tmp/"
       -- imageManifest = "inbox/tmp/" ++ (unpack $ docId doc) ++ "_image_manifest.txt"
       -- imageDirectory1 = "image/" ++ (unpack $ docId doc) ++ ""
-      imageDirectory = "inbox/tmp/image/"
+      
       -- getImages =
       -- cmd = "wget -P image -i " ++ imageManifest
       -- make document with normal image urls
