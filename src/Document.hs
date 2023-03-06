@@ -112,7 +112,8 @@ prepareData doc =
       cleanup = "rm inbox/tmp/*; rm inbox/tmp/image/*"
       cleanManifests = "rm inbox/tmp/*_manifest.txt*"
   in
-    do 
+    do
+      print urlData
       system cleanup  >>= \exitCode -> print exitCode
       writeTeXSourceFile doc
       writeTeXSourceFileTmp doc
