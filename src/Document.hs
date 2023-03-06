@@ -70,7 +70,7 @@ writeTeXSourceFileTmp doc =
 prepareData :: Document -> IO()
 prepareData doc =
   let
-      urlData =  joinStrings "\n" $ Prelude.map unpack  (urlList doc)
+      urlData = joinStrings "\n" $ Prelude.map unpack  (urlList doc)
       preparePackages = "cp " ++ (packagePaths doc) ++ " inbox/tmp/"
       imageManifest = "inbox/tmp/" ++ (unpack $ docId doc) ++ "_image_manifest.txt"
       -- imageDirectory1 = "image/" ++ (unpack $ docId doc) ++ ""
