@@ -129,11 +129,12 @@ prepareData doc =
       writeTeXSourceFileTmp doc
       -- writeFile imageManifest urlData
       system preparePackages
+      mapM_ downloadImage (urlList doc)
 --      system getNormalImageimageManifests >>= \exitCode -> print exitCode
 --      system getIBBImageimageManifests >>= \exitCode -> print exitCode
 --      system getNormalImages >>= \exitCode -> print exitCode
 --      system getIBBmages >>= \exitCode -> print exitCode
-      system cleanManifests  >>= \exitCode -> print exitCode
+      -- system cleanManifests  >>= \exitCode -> print exitCode
       -- system copyFilesFromIBBDirToImageDirectory >>= \exitCode -> print exitCode
       
 
