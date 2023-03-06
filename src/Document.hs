@@ -11,8 +11,27 @@ import Data.List.Utils (replace)
 
 -- Define the Article constructor
 -- e.g. Article 12 "some title" "some body text"
-data Document = Document Text Text [Text] [Text]-- id content imageUrls packageList
+data Document = Document Text Text [ImageElement] [Text]-- id content imageUrls packageList
      deriving (Show)
+
+
+data ImageElement = ImageElement
+      {
+        url        :: String
+      , filename   :: String
+      } deriving Show
+
+instance FromJSON ImageElement where
+  parseJSON = withObject "ImageElement" $ \o -> do
+    url <- o .: "url"
+    filename <- o .: "filename"
+    return $ ImageElement url filename
+
+instance ToJSON ImageElement where
+     toJSON (ImageElement url filename) =
+         object ["id" .= url,
+                 "filename" .= filename
+                 ]
 
 
 docId :: Document -> Text
@@ -21,7 +40,7 @@ docId (Document id _ _ _) = id
 content :: Document -> Text
 content (Document _ content _ _ ) = content
 
-urlList :: Document -> [Text]
+urlList :: Document -> [ImageElement]
 urlList (Document _  _ urlList _) = urlList
 
 packageList :: Document -> [Text]
@@ -70,7 +89,7 @@ writeTeXSourceFileTmp doc =
 prepareData :: Document -> IO()
 prepareData doc =
   let
-      urlData =  joinStrings "\n" $ Prelude.map unpack  (urlList doc)
+      urlData =  joinStrings "\n" $ Prelude.map show  (urlList doc)
       preparePackages = "cp " ++ (packagePaths doc) ++ " inbox/tmp/"
       imageManifest = "inbox/tmp/" ++ (unpack $ docId doc) ++ "_image_manifest.txt"
       -- imageDirectory1 = "image/" ++ (unpack $ docId doc) ++ ""
