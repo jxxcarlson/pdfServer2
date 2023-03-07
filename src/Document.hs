@@ -80,7 +80,7 @@ writeTeXSourceFile doc =
   in
     writeFile texFilename contents
 
-imageDirectory = "inbox/image/"
+imageDirectory = "image/"
 
 downloadImage :: ImageElement -> IO (GHC.IO.Exception.ExitCode)
 downloadImage element =
