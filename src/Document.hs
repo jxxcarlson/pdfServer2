@@ -12,7 +12,7 @@ import GHC.IO.Exception
 
 -- Define the Article constructor
 -- e.g. Article 12 "some title" "some body text"
-data Document = Document Text Text [ImageElement] [Text]-- id content imageUrls packageList
+data Document = Document Text Text [ImageElement] [Text]-- id content imageElements packageList
      deriving (Show)
 
 
@@ -21,6 +21,25 @@ data ImageElement = ImageElement
         url        :: String
       , filename   :: String
       } deriving Show
+
+-- Tell Aeson how to create a Document object from JSON string.
+instance FromJSON Document where
+     parseJSON (Object v) = Document <$>
+                            v .: "id" <*> 
+                            v .: "content" <*>
+                            v .: "urlList" <*>
+                            v .: "packageList"
+ 
+
+-- Tell Aeson how to convert a Document object to a JSON string.
+instance ToJSON Document where
+     toJSON (Document id content imageUrls packageList) =
+         object ["id" .= id,
+                 "content" .= content,
+                 "urlList" .= imageUrls,
+                 "packageList" .= packageList
+                 ]
+
 
 instance FromJSON ImageElement where
   parseJSON = withObject "ImageElement" $ \o -> do
@@ -50,42 +69,24 @@ packageList (Document _  _ _ packageList) = packageList
 packagePaths doc = 
   (joinStrings " " $ fmap (\s -> "package/" ++ s) $ fmap unpack $ packageList $ doc)
 
--- Tell Aeson how to create a Document object from JSON string.
-instance FromJSON Document where
-     parseJSON (Object v) = Document <$>
-                            v .: "id" <*> 
-                            v .: "content" <*>
-                            v .: "urlList" <*>
-                            v .: "packageList"
- 
-
--- Tell Aeson how to convert a Document object to a JSON string.
-instance ToJSON Document where
-     toJSON (Document id content imageUrls packageList) =
-         object ["id" .= id,
-                 "content" .= content,
-                 "urlList" .= imageUrls,
-                 "packageList" .= packageList
-                 ]
-
 
 fixGraphicsPath = replace "\\graphicspath{ {image/} }" "\\graphicspath{{inbox/tmp/image/}}"
 
 writeTeXSourceFile :: Document -> IO()
 writeTeXSourceFile doc = 
   let
-    texFile = "inbox/" ++ (unpack $ docId doc) 
+    texFilename = "inbox/" ++ (unpack $ docId doc) 
     contents = fixGraphicsPath $ unpack $ content doc
   in
-    writeFile texFile contents
+    writeFile texFilename contents
 
 writeTeXSourceFileTmp :: Document -> IO()
 writeTeXSourceFileTmp doc = 
   let
-    texFile = "inbox/tmp/" ++ (unpack $ docId doc) 
+    texFilename = "inbox/tmp/" ++ (unpack $ docId doc) 
     contents = unpack $ content doc
   in
-    writeFile texFile contents
+    writeFile texFilename contents
 
 imageDirectory = "inbox/tmp/image/"
 
