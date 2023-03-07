@@ -13,16 +13,18 @@ import Network.HTTP.Types
 import Network.Wai.Middleware.Static ( (>->), addBase, noDots, staticPolicy )
 import Web.Scotty
 import Network.Wai.Middleware.Cors
+import Network.Wai                       (Application, Middleware)
+import Network.Wai.Middleware.AddHeaders (addHeaders)
 import Network.Wai.Middleware.RequestLogger
 import System.Process
---  import Data.List.Utils (replace)
 import Data.Text.Lazy (pack, unpack, replace, Text)
 import Pdf
 import Tar
 import Document (Document, writeTeXSourceFile, prepareData, docId)
 
 main = scotty 3000 $ do
-    middleware corsPolicy 
+
+    middleware defaultMiddlewares
     middleware logStdoutDev
 
     post "/pdf" $ do
@@ -61,10 +63,30 @@ textReplace :: String -> String -> Text -> Text
 textReplace src target text = 
     replace (pack src) (pack target) text
 
--- corsPolicy :: Middleware
-corsPolicy = cors (const $ Just policy)
-    where
-      policy = simpleCorsResourcePolicy
-        { corsOrigins  = Nothing
-        , corsRequestHeaders = ["Content-Type"]  }
+defaultMiddlewares :: Network.Wai.Application -> Network.Wai.Application
+-- defaultMiddlewares = compression . staticFiles "public" . allowCsrf . corsified  
+defaultMiddlewares =   allowCsrf . corsified  
 
+
+-- | @x-csrf-token@ allowance.
+-- The following header will be set: @Access-Control-Allow-Headers: x-csrf-token@.
+allowCsrf :: Middleware
+allowCsrf = addHeaders [("Access-Control-Allow-Headers", "x-csrf-token,authorization")]
+
+
+-- | CORS middleware configured with 'appCorsResourcePolicy'.
+corsified :: Middleware
+corsified = cors (const $ Just appCorsResourcePolicy)    
+
+-- | CORS middleware configured with 'appCorsResourcePolicy'.
+appCorsResourcePolicy :: CorsResourcePolicy
+appCorsResourcePolicy = CorsResourcePolicy
+  { corsOrigins        = Nothing
+  , corsMethods        = ["OPTIONS", "GET", "PUT", "POST", "DELETE"]
+  , corsRequestHeaders = ["Authorization", "Content-Type", "Origin"]
+  , corsExposedHeaders = Nothing
+  , corsMaxAge         = Nothing
+  , corsVaryOrigin     = False
+  , corsRequireOrigin  = False
+  , corsIgnoreFailures = False
+  }
