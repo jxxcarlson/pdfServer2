@@ -27,9 +27,9 @@ create document =
 createPdf_ :: String -> IO ()
 createPdf_ fileName =
     let
-        texFile = "inbox/" ++ fileName
-        cmd_ = "xelatex -output-directory=outbox -interaction=nonstopmode " ++ texFile
-        cmd = cmd_ ++ " ; " ++ cmd_
+        texFilename = "inbox/" ++ fileName
+        cmd_ = "xelatex -output-directory=outbox -interaction=nonstopmode " ++ texFilename
+        cmd = cmd_ ++ " ; " ++ cmd_ -- do it twice
     in
         system cmd >>= \exitCode -> print exitCode
 
