@@ -20,8 +20,8 @@ create document =
     in
     do
         createPdf_ fileName  >>= \exitCode -> print exitCode
-        system removePdfDetritus  >>= \exitCode -> print exitCode
-        system removeTexFileCmd   >>= \exitCode -> print exitCode
+        -- system removePdfDetritus  >>= \exitCode -> print exitCode
+        -- system removeTexFileCmd   >>= \exitCode -> print exitCode
 
 
 createPdf_ :: String -> IO ()

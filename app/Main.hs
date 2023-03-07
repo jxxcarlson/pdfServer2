@@ -31,7 +31,7 @@ main = scotty 3000 $ do
         document <- jsonData :: ActionM Document 
         liftIO $ Document.prepareData document
         liftIO $ Pdf.create document
-        text (Document.docId document)   
+        text (Document.docId document) 
 
     post "/tar" $ do
         document <- jsonData :: ActionM Document 

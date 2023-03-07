@@ -76,19 +76,11 @@ writeTeXSourceFile :: Document -> IO()
 writeTeXSourceFile doc = 
   let
     texFilename = "inbox/" ++ (unpack $ docId doc) 
-    contents = fixGraphicsPath $ unpack $ content doc
-  in
-    writeFile texFilename contents
-
-writeTeXSourceFileTmp :: Document -> IO()
-writeTeXSourceFileTmp doc = 
-  let
-    texFilename = "inbox/tmp/" ++ (unpack $ docId doc) 
     contents = unpack $ content doc
   in
     writeFile texFilename contents
 
-imageDirectory = "inbox/tmp/image/"
+imageDirectory = "inbox/image/"
 
 downloadImage :: ImageElement -> IO (GHC.IO.Exception.ExitCode)
 downloadImage element =
@@ -98,16 +90,15 @@ downloadImage element =
 prepareData :: Document -> IO()
 prepareData doc =
   let
-      preparePackages = "cp " ++ (packagePaths doc) ++ " inbox/tmp/"
-      cleanup = "rm inbox/tmp/*; rm inbox/tmp/image/*"
-      cleanManifests = "rm inbox/tmp/*_manifest.txt*"
+      preparePackages = "cp " ++ (packagePaths doc) ++ " inbox/"
   in
     do
-      system cleanup  >>= \exitCode -> print exitCode
-      writeTeXSourceFile doc
-      writeTeXSourceFileTmp doc
+      print ("inbox/" ++ (unpack $ docId doc) )
+      print ("Package path" ++ (packagePaths doc))
+      mapM_ downloadImage (urlList doc) -- write the image files to inbox/image
       system preparePackages
-      mapM_ downloadImage (urlList doc)
+      writeTeXSourceFile doc -- write the tex file to inbox/
+     
       
 
 joinStrings :: String -> [String] -> String
