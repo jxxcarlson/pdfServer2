@@ -98,47 +98,16 @@ downloadImage element =
 prepareData :: Document -> IO()
 prepareData doc =
   let
-      urlData =  joinStrings "\n" $ Prelude.map show  (urlList doc)
       preparePackages = "cp " ++ (packagePaths doc) ++ " inbox/tmp/"
-      -- imageManifest = "inbox/tmp/" ++ (unpack $ docId doc) ++ "_image_manifest.txt"
-      -- imageDirectory1 = "image/" ++ (unpack $ docId doc) ++ ""
-      
-      -- getImages =
-      -- cmd = "wget -P image -i " ++ imageManifest
-      -- make document with normal image urls
-      -- getNormalImageimageManifests = "grep -v image.png " ++ imageManifest ++ " > "  ++  (imageManifest ++ "-1")
-      -- make document with image urls for ibb.co
-      -- getIBBImageimageManifests = "grep image.png " ++ imageManifest ++ " > " ++ (imageManifest ++ "-2")
-      -- get the normal images
-      -- getNormalImages = "wget -P " ++ imageDirectory ++ " -i " ++ (imageManifest ++ "-1")
-      -- get the ibb.co images
---      getIBBmages = "wget -P " ++ imageDirectory ++ " -i " ++ (imageManifest ++ "-2") ++ " -x"
---      l1 = "for p in `cat " ++ (imageManifest ++ "-2") ++ " | sed 's/https:\\/\\/i.ibb.co\\///g' | sed 's/\\/image.png//g'`\n"
---      l2 = "do\n"
---      l3 = "cp image/i.ibb.co/$p/image.png " ++ imageDirectory ++ " $p.png\n"
---      l3b = "cp image/i.ibb.co/$p/image.jpb " ++ imageDirectory ++ " $p.jpg\n"
---      l4 = "done"
---      copyFilesFromIBBDirToImageDirectory = l1 ++ l2 ++ l3 ++ l4
       cleanup = "rm inbox/tmp/*; rm inbox/tmp/image/*"
       cleanManifests = "rm inbox/tmp/*_manifest.txt*"
   in
     do
-      print $ urlList doc
-      print ""
-      print ""
-      print ""
       system cleanup  >>= \exitCode -> print exitCode
       writeTeXSourceFile doc
       writeTeXSourceFileTmp doc
-      -- writeFile imageManifest urlData
       system preparePackages
       mapM_ downloadImage (urlList doc)
---      system getNormalImageimageManifests >>= \exitCode -> print exitCode
---      system getIBBImageimageManifests >>= \exitCode -> print exitCode
---      system getNormalImages >>= \exitCode -> print exitCode
---      system getIBBmages >>= \exitCode -> print exitCode
-      -- system cleanManifests  >>= \exitCode -> print exitCode
-      -- system copyFilesFromIBBDirToImageDirectory >>= \exitCode -> print exitCode
       
 
 joinStrings :: String -> [String] -> String
