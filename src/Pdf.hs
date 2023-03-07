@@ -15,13 +15,13 @@ create :: Document -> IO()
 create document =
     let
         fileName = unpack $ Document.docId document
-        removeTexFileCmd = "rm inbox/*.tex"
-        removePdfDetritus = "rm outbox/*.log outbox/*.aux  outbox/*.toc outbox/*.out"
+        removeInputs = "rm inbox/*.tex image/*"
+        removeOuputJunk = "rm outbox/*.log outbox/*.aux  outbox/*.toc outbox/*.out"
     in
     do
+        system removeInputs >>= \exitCode -> print exitCode
         createPdf_ fileName  >>= \exitCode -> print exitCode
-        -- system removePdfDetritus  >>= \exitCode -> print exitCode
-        -- system removeTexFileCmd   >>= \exitCode -> print exitCode
+        system removeOuputJunk >>= \exitCode -> print exitCode
 
 
 createPdf_ :: String -> IO ()

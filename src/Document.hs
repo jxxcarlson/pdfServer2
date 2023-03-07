@@ -80,13 +80,10 @@ writeTeXSourceFile doc =
   in
     writeFile texFilename contents
 
-imageDirectory = "image/"
 
 downloadImage :: ImageElement -> IO (GHC.IO.Exception.ExitCode)
 downloadImage element =
-   system ("wget -O " ++ imageDirectory ++ (filename element) ++ " " ++  (url element))
-
-cleanupCmd = "rm inbox/*; rm outbox/*; rm image/*"
+   system ("wget -O " ++ "image/" ++ (filename element) ++ " " ++  (url element))
 
 prepareData :: Document -> IO()
 prepareData doc =
@@ -94,13 +91,9 @@ prepareData doc =
       preparePackages = "cp " ++ (packagePaths doc) ++ " inbox/"
   in
     do
-      system cleanupCmd
-      print ("inbox/" ++ (unpack $ docId doc) )
-      print ("Package path" ++ (packagePaths doc))
-
-      mapM_ downloadImage (urlList doc) -- write the image files to inbox/image
-      system preparePackages
-      writeTeXSourceFile doc -- write the tex file to inbox/
+      mapM_ downloadImage (urlList doc) -- write the image files to ./image
+      system preparePackages            -- copy any packages needed from ./package to ./inbox
+      writeTeXSourceFile doc            -- write the tex file to ./inbox
      
       
 
