@@ -16,11 +16,11 @@ create document =
     let
         fileName = unpack $ Document.docId document
         removeInputs = "rm inbox/*.tex image/*"
-        removeOuputJunk = "rm outbox/*.log outbox/*.aux  outbox/*.toc outbox/*.out"
+        removeOuputJunk = "rm outbox/*.log outbox/*.aux  outbox/*.log"
     in
     do
-        system removeInputs >>= \exitCode -> print exitCode
         createPdf_ fileName  >>= \exitCode -> print exitCode
+        system removeInputs >>= \exitCode -> print exitCode
         system removeOuputJunk >>= \exitCode -> print exitCode
 
 
