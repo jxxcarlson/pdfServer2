@@ -29,10 +29,11 @@ main = scotty 3000 $ do
 
     post "/pdf" $ do
         
-        document <- jsonData :: ActionM Document 
-        liftIO $ Document.prepareData document
-        liftIO $ Pdf.create document
-        text  (textReplace ".tex" ".pdf" (Document.docId document))
+        document <- jsonData :: ActionM Document
+        processDocument document 
+        -- liftIO $ Document.prepareData document
+        -- liftIO $ Pdf.create document
+        -- text  (textReplace ".tex" ".pdf" (Document.docId document))
 
     post "/tar" $ do
         document <- jsonData :: ActionM Document 
@@ -57,6 +58,12 @@ main = scotty 3000 $ do
        text "Yes, I am still here\n"
 
     middleware $ staticPolicy (noDots >-> addBase "outbox")
+
+processDocument document = 
+    do
+        liftIO $ Document.prepareData document
+        liftIO $ Pdf.create document
+        text  (textReplace ".tex" ".pdf" (Document.docId document))
 
 
 textReplace :: String -> String -> Text -> Text
