@@ -21,6 +21,10 @@ import Data.Text.Lazy (pack, unpack, replace, Text)
 import Pdf
 import Tar
 import Document (Document, writeTeXSourceFile, prepareData, docId)
+import Data.Sequence as Seq 
+
+documentQueue :: Seq Document
+documentQueue = Seq.empty 
 
 main = scotty 3000 $ do
 
@@ -58,6 +62,13 @@ main = scotty 3000 $ do
        text "Yes, I am still here\n"
 
     middleware $ staticPolicy (noDots >-> addBase "outbox")
+
+processIncomingDocument document = 
+   if Seq.null documentQueue then
+      processDocument document 
+   else 
+     do 
+      text  "documentQueue is not empty"
 
 processDocument document = 
     do
