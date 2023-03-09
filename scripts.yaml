@@ -10,12 +10,9 @@ scripts:
 
   edit-start: vim /etc/systemd/system/pdfServer.service
 
-  cloc: cloc --by-file src app
-
   ssh: ssh root@161.35.125.40
 
   ping: ping 161.35.125.40
-
 
   hello: curl http://pdfserv.app/hello
 
@@ -48,5 +45,7 @@ scripts:
   test-server2: curl https://shoobox.io/hello
 
   test-server3: curl -X POST https://shoobox.io/hello
+
+  cloc:  cloc --by-file src app
 
 

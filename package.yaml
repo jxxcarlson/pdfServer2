@@ -28,6 +28,7 @@ dependencies:
 - split
 - MissingH
 - raw-strings-qq
+- wai
 - wai-extra
 - wai-cors
 - scotty

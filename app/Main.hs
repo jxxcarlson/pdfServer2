@@ -10,20 +10,21 @@ import Control.Monad.IO.Class (liftIO) -- liftIO :: IO a -> m a
 
 import Web.Scotty
 import Network.HTTP.Types
-import Data.Text.Lazy (pack, Text)
 import Network.Wai.Middleware.Static ( (>->), addBase, noDots, staticPolicy )
 import Web.Scotty
 import Network.Wai.Middleware.Cors
+import Network.Wai                       (Application, Middleware)
+import Network.Wai.Middleware.AddHeaders (addHeaders)
 import Network.Wai.Middleware.RequestLogger
 import System.Process
-import Data.List.Utils (replace)
-
-import Tar
+import Data.Text.Lazy (pack, unpack, replace, toLower, Text)
 import Pdf
+import Tar
 import Document (Document, writeTeXSourceFile, prepareData, docId)
 
 main = scotty 3000 $ do
-    middleware corsPolicy 
+
+    middleware defaultMiddlewares
     middleware logStdoutDev
 
     post "/pdf" $ do
@@ -32,7 +33,7 @@ main = scotty 3000 $ do
         -- print document
         liftIO $ Document.prepareData document
         liftIO $ Pdf.create document
-        text (Document.docId document)   
+        text  (textReplace ".tex" ".pdf" (Data.Text.Lazy.toLower (Document.docId document)))
 
     post "/tar" $ do
         document <- jsonData :: ActionM Document 
@@ -42,12 +43,12 @@ main = scotty 3000 $ do
 
     get "/pdf/:id" $ do
         docId <- param "id"
-        file ("outbox/" ++ (replace ".tex" ".pdf" docId)) 
-        -- print "/pdf/:id" ++ (replace ".tex" ".pdf" docId)
+        file ("outbox/" ++ docId)
+
 
     get "/tar/:id" $ do
         docId <- param "id"
-        file ("outbox/" ++ (replace ".tex" ".tar" docId ))
+        file ("outbox/" ++ (unpack docId) )
 
     get "/hello" $ do
         html $ mconcat ["Yes, I am still here\n"]
@@ -61,12 +62,34 @@ main = scotty 3000 $ do
 
     middleware $ staticPolicy (noDots >-> addBase "outbox")
 
+textReplace :: String -> String -> Text -> Text
+textReplace src target text = 
+    replace (pack src) (pack target) text
+
+defaultMiddlewares :: Network.Wai.Application -> Network.Wai.Application
+-- defaultMiddlewares = compression . staticFiles "public" . allowCsrf . corsified  
+defaultMiddlewares =   allowCsrf . corsified  
 
 
--- corsPolicy :: Middleware
-corsPolicy = cors (const $ Just policy)
-    where
-      policy = simpleCorsResourcePolicy
-        { corsOrigins  = Nothing
-        , corsRequestHeaders = ["Content-Type"]  }
+-- | @x-csrf-token@ allowance.
+-- The following header will be set: @Access-Control-Allow-Headers: x-csrf-token@.
+allowCsrf :: Middleware
+allowCsrf = addHeaders [("Access-Control-Allow-Headers", "x-csrf-token,authorization")]
 
+
+-- | CORS middleware configured with 'appCorsResourcePolicy'.
+corsified :: Middleware
+corsified = cors (const $ Just appCorsResourcePolicy)    
+
+-- | CORS middleware configured with 'appCorsResourcePolicy'.
+appCorsResourcePolicy :: CorsResourcePolicy
+appCorsResourcePolicy = CorsResourcePolicy
+  { corsOrigins        = Nothing
+  , corsMethods        = ["OPTIONS", "GET", "PUT", "POST", "DELETE"]
+  , corsRequestHeaders = ["Authorization", "Content-Type", "Origin"]
+  , corsExposedHeaders = Nothing
+  , corsMaxAge         = Nothing
+  , corsVaryOrigin     = False
+  , corsRequireOrigin  = False
+  , corsIgnoreFailures = False
+  }
