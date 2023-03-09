@@ -17,7 +17,7 @@ import Network.Wai                       (Application, Middleware)
 import Network.Wai.Middleware.AddHeaders (addHeaders)
 import Network.Wai.Middleware.RequestLogger
 import System.Process
-import Data.Text.Lazy (pack, unpack, replace, Text)
+import Data.Text.Lazy (pack, unpack, replace, toLower, Text)
 import Pdf
 import Tar
 import Document (Document, writeTeXSourceFile, prepareData, docId)
@@ -32,7 +32,7 @@ main = scotty 3000 $ do
         document <- jsonData :: ActionM Document 
         liftIO $ Document.prepareData document
         liftIO $ Pdf.create document
-        text  (textReplace ".tex" ".pdf" (Document.docId document))
+        text  (textReplace ".tex" ".pdf" (Data.Text.Lazy.toLower (Document.docId document)))
 
     post "/tar" $ do
         document <- jsonData :: ActionM Document 
