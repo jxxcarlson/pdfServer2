@@ -10,3 +10,9 @@ pdfServer
 .idea/
 
 
+inbox/
+outbox/
+image/
+refrigerator/
+experiments/
+.vscode/
