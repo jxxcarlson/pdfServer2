@@ -31,7 +31,7 @@ createPdf_ :: String -> IO ()
 createPdf_ fileName =
     let
         texFilename = "inbox/" ++ fileName
-        cmd_ = "xelatex -output-directory=outbox -interaction=nonstopmode " ++ texFilename
+        cmd_ = "xelatex -output-directory=outbox -interaction=batchmode " ++ texFilename -- batchmode instead of nonstopmode
         cmd = cmd_ ++ " ; " ++ cmd_ -- do it twice
     in
         system cmd >>= \exitCode -> print exitCode
