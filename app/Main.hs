@@ -29,8 +29,7 @@ main = scotty 3000 $ do
 
     post "/pdf" $ do
         
-        document <- jsonData :: ActionM Document 
-        -- print document
+        document <- jsonData :: ActionM Document
         liftIO $ Document.prepareData document
         liftIO $ Pdf.create document
         text  (textReplace ".tex" ".pdf" (Data.Text.Lazy.toLower (Document.docId document)))
