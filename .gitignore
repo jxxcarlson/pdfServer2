@@ -1,10 +1,6 @@
 .stack-work/
 *~
-inbox/
-outbox/
-image/
 .DS_Store
-image/*.*
 app/Main
 app/Main.o
 app/Main.hi
@@ -14,3 +10,9 @@ pdfServer
 .idea/
 
 
+inbox/
+outbox/
+image/
+refrigerator/
+experiments/
+.vscode/
