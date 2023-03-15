@@ -22,8 +22,6 @@ import Pdf
 import Tar
 import Document (Document, writeTeXSourceFile, prepareData, docId)
 import Image (CFImage,prepareCFImage,requestCFToken)
--- import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Encoding as TE
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Text.Lazy.Encoding as TLE
 
@@ -36,7 +34,8 @@ main = scotty 3000 $ do
         image <- jsonData :: ActionM CFImage
         liftIO $ prepareCFImage image
         response <- liftIO $ requestCFToken
-        text $ blToText $ response
+        let responseAsJson = blToText $ response
+        text $ responseAsJson
 
     post "/pdf" $ do
         document <- jsonData :: ActionM Document
@@ -102,6 +101,6 @@ appCorsResourcePolicy = CorsResourcePolicy
   , corsIgnoreFailures = False
   }
 
-  -- | Convert BL.ByteString to Text
+-- | Convert BL.ByteString to Text
 blToText :: BL.ByteString -> Text
 blToText = TLE.decodeUtf8
