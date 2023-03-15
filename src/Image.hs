@@ -63,8 +63,8 @@ uploadResult (CFUploadResponse result  _ _ _) = result
 getUploadUrl :: CFUploadData -> String
 getUploadUrl (CFUploadData _ url)  = url
 
-getUploadUrlFromResult :: CFUploadResponse -> String
-getUploadUrlFromResult = getUploadUrl . uploadResult
+getUploadUrlFromResponse :: CFUploadResponse -> String
+getUploadUrlFromResponse = getUploadUrl . uploadResult
 
 requestCFToken :: IO (String)
 requestCFToken = do
@@ -80,7 +80,7 @@ requestCFToken = do
     let cfUploadResponse = (Data.Aeson.decode  (responseBody response))  :: Maybe CFUploadResponse
     case cfUploadResponse of 
       Nothing -> return $  show "Could not decode Cloudflare's response: " ++ (show $ responseBody response)
-      Just daata -> return $ show daata
+      Just daata -> return $ show (getUploadUrlFromResponse daata)
     
 
 cloudFlareAPIKey = "wmBxrHLMHFfBa4P5M6gGfS-w8dYJELRu74dA_wcy"
