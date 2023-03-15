@@ -26,6 +26,47 @@ data CFImage = CFImage
       } deriving Show
 
 
+data CFUploadResponse = CFUploadResponse
+  {
+    result   :: CFUploadData,
+    success  ::Bool,
+    errors   :: [String],
+    messages :: [String]
+  } deriving Show
+
+data CFUploadData = CFUploadData {
+    id        :: String,
+    uploadUrl :: String
+  } deriving Show
+
+uploadResult :: CFUploadResponse -> CFUploadData
+uploadResult (CFUploadResponse result  _ _ _) = result
+
+getUploadUrl :: CFUploadData -> String
+getUploadUrl (CFUploadData _ url)  = url
+
+getUploadUrlFromResult :: CFUploadResponse -> String
+getUploadUrlFromResult = getUploadUrl . uploadResult
+
+
+-- Tell Aeson how to convert a CFUploadResponse object to a JSON string.
+instance FromJSON CFUploadData where
+  parseJSON = withObject "UploadResult" $ \o -> do
+    id <- o .: "id"
+    uploadURL <- o .: "uploadURL"
+    return $ CFUploadData id uploadURL
+
+instance FromJSON CFUploadResponse where
+  parseJSON = withObject "Response" $ \o -> do
+    result <- o .: "result"
+    success <- o .: "success"
+    errors <- o .: "errors"
+    messages <- o .: "messages"
+    return $ CFUploadResponse result success errors messages
+
+
+
+
 requestCFToken :: IO (BL.ByteString)
 requestCFToken = do
     manager <- newTlsManager -- create a new manager
@@ -73,4 +114,5 @@ instance ToJSON CFImage where
                  "filename" .= filename,
                  "username" .= username
                  ]
+
 
