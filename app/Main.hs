@@ -21,14 +21,18 @@ import Data.Text.Lazy (pack, unpack, replace, toLower, Text)
 import Pdf
 import Tar
 import Document (Document, writeTeXSourceFile, prepareData, docId)
+import Image (CFImage,prepareCFImage)
 
 main = scotty 3000 $ do
 
     middleware defaultMiddlewares
     middleware logStdoutDev
 
+    post "/image" $ do
+        image <- jsonData :: ActionM CFImage
+        liftIO $ prepareCFImage image
+
     post "/pdf" $ do
-        
         document <- jsonData :: ActionM Document
         liftIO $ Document.prepareData document
         liftIO $ Pdf.create document
