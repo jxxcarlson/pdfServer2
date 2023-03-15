@@ -21,16 +21,22 @@ import Data.Text.Lazy (pack, unpack, replace, toLower, Text)
 import Pdf
 import Tar
 import Document (Document, writeTeXSourceFile, prepareData, docId)
-import Image (CFImage,prepareCFImage)
+import Image (CFImage,prepareCFImage,requestCFToken)
+-- import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Encoding as TE
+import qualified Data.ByteString.Lazy.Char8 as BL
+import qualified Data.Text.Lazy.Encoding as TLE
 
 main = scotty 3000 $ do
-
+ 
     middleware defaultMiddlewares
-    middleware logStdoutDev
+    middleware logStdoutDev 
 
     post "/image" $ do
         image <- jsonData :: ActionM CFImage
         liftIO $ prepareCFImage image
+        response <- liftIO $ requestCFToken
+        text $ blToText $ response
 
     post "/pdf" $ do
         document <- jsonData :: ActionM Document
@@ -55,7 +61,6 @@ main = scotty 3000 $ do
 
     get "/hello" $ do
         html $ mconcat ["Yes, I am still here\n"]
-
 
     post "/hello" $ do
        text "Yes, I am still here\n"
@@ -96,3 +101,7 @@ appCorsResourcePolicy = CorsResourcePolicy
   , corsRequireOrigin  = False
   , corsIgnoreFailures = False
   }
+
+  -- | Convert BL.ByteString to Text
+blToText :: BL.ByteString -> Text
+blToText = TLE.decodeUtf8
