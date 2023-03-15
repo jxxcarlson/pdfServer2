@@ -34,8 +34,7 @@ main = scotty 3000 $ do
         image <- jsonData :: ActionM CFImage
         liftIO $ prepareCFImage image
         response <- liftIO $ requestCFToken
-        let responseAsJson = blToText $ response
-        text $ responseAsJson 
+        text $ pack $ response 
 
     post "/pdf" $ do
         document <- jsonData :: ActionM Document
