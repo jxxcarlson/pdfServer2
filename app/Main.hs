@@ -22,9 +22,10 @@ import Data.Text.Lazy (pack, unpack, replace, toLower, Text)
 import Pdf
 import Tar
 import Document (Document, writeTeXSourceFile, prepareData, docId)
-import Image (CFImage,prepareCFImage,requestCFToken, updateCFImage)
+import Image (CFImage,prepareCFImage,requestCFToken, updateCFImage, uploadTheImage, getFilenameFromImage)
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Text.Lazy.Encoding as TLE
+import qualified Data.List.Utils as U
 
 main = scotty 3000 $ do
  
@@ -35,9 +36,13 @@ main = scotty 3000 $ do
         image <- jsonData :: ActionM CFImage
         liftIO $ prepareCFImage image
         cfImageUploadUrl <- liftIO $ requestCFToken
-        -- liftIO $ uploadTheImage cfImageUploadUrl image
-        let updatedImage = updateCFImage cfImageUploadUrl image 
-        text $ blToText $ encode updatedImage 
+        let cfImageUploadUrl' = U.replace "\"" "" cfImageUploadUrl
+        let filename = getFilenameFromImage image
+        -- OK TO HERE: 
+        -- text $ pack cfImageUploadUrl'
+        cfUploadedImageUrl <- liftIO $ uploadTheImage cfImageUploadUrl' filename
+        -- text $ blToText $ encode updatedImage 
+        text $ pack cfUploadedImageUrl
 
     post "/pdf" $ do
         document <- jsonData :: ActionM Document

@@ -42,6 +42,8 @@ data CFImage = CFImage
       , username   :: String
       } deriving Show
 
+getFilenameFromImage :: CFImage -> String
+getFilenameFromImage (CFImage _ filename _) = filename
 
 updateCFImage :: String -> CFImage -> CFImage
 updateCFImage newUrl cfImage = 
@@ -89,15 +91,16 @@ getUploadUrlFromResponse = getUploadUrl . uploadResult
 
 
 
-uploadTheImage :: String -> String -> IO ()
+uploadTheImage :: String -> String -> IO (String)
 uploadTheImage uploadUrl filename  = do
     manager <- newTlsManager
     request <- parseRequest uploadUrl
     let request' = request {method = "POST"}
     let requestFile = "cf-image/" ++ filename 
-    request'' <- MultiPart.formDataBody [ MultiPart.partBS "id" (BS.pack filename), MultiPart.partFileSource "file" requestFile] request'
+    request'' <- MultiPart.formDataBody [ MultiPart.partFileSource "file" requestFile] request'
     response <- httpLbs request'' manager
-    LBS.putStrLn $ responseBody response
+    -- LBS.putStrLn $ responseBody response
+    return $ show $ responseBody response
 
 
 requestCFToken :: IO (String)
