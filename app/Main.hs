@@ -21,10 +21,11 @@ import Data.Text.Lazy (pack, unpack, replace, toLower, Text)
 import Pdf
 import Tar
 import Document (Document, writeTeXSourceFile, prepareData, docId)
-import Image (CFImage,prepareCFImage,requestCFToken, updateCFImage, uploadTheImage, getFilenameFromImage)
+import Image (CFImage,CFUploadResponse,prepareCFImage,requestCFToken, updateCFImage, uploadTheImage,getUrlFromImage,  getFilenameFromImage, getUploadUrlFromResponse)
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Text.Lazy.Encoding as TLE
 import qualified Data.List.Utils as U
+import Data.Aeson
 
 main = scotty 3000 $ do
  
@@ -37,10 +38,13 @@ main = scotty 3000 $ do
         cfImageUploadUrl <- liftIO $ requestCFToken
         let cfImageUploadUrl' = U.replace "\"" "" cfImageUploadUrl
         let filename = getFilenameFromImage image
-        -- OK TO HERE: 
-        -- text $ pack cfImageUploadUrl'
-        cfUploadedImageResponse <- liftIO $ uploadTheImage cfImageUploadUrl' filename
-        -- text $ blToText $ encode updatedImage 
+        cfUploadedImageResponse <- liftIO $ uploadTheImage cfImageUploadUrl filename
+        -- let cfUploadedImageResponse' = Data.Aeson.decode $ BL.pack cfUploadedImageResponse :: Maybe CFUploadResponse
+        -- let maybePublicUrl = fmap getUploadUrlFromResponse cfUploadedImageResponse'
+        -- cfUploadedImageResponse' <- Data.Aeson.encode cfUploadedImageResponse
+       
+        --WRONG -- Let publicImageUrl = getUploadUrlFromResponse cfUploadedImageResponse
+        -- text $ pack $ show maybePublicUrl
         text $ pack cfUploadedImageResponse
 
     post "/pdf" $ do

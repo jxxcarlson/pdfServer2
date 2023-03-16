@@ -38,13 +38,16 @@ import qualified Data.Text.Lazy as TL
 
 data CFImage = CFImage
       {
-        url        :: String
-      , filename   :: String
-      , username   :: String
+        url             :: String
+      , imageFilename   :: String
+      , username        :: String
       } deriving Show
 
 getFilenameFromImage :: CFImage -> String
-getFilenameFromImage (CFImage _ filename _) = filename
+getFilenameFromImage (CFImage _ imageFilename _) = imageFilename
+
+getUrlFromImage :: CFImage -> String
+getUrlFromImage (CFImage url _ _ ) = url
 
 updateCFImage :: String -> CFImage -> CFImage
 updateCFImage newUrl cfImage = 
@@ -60,16 +63,39 @@ data CFUploadResponse = CFUploadResponse
   } deriving Show
 
 data CFUploadData = CFUploadData {
-    id        :: String,
-    uploadUrl :: String
+    id                :: String,
+    filename          :: String,
+    uploaded          :: String,
+    requireSignedURLs :: Bool,
+    variants          :: [String]
   } deriving Show
+
 
 -- Tell Aeson how to convert a CFUploadResponse object to a JSON string.
 instance FromJSON CFUploadData where
   parseJSON = withObject "CFUploadData" $ \o -> do
       id <- o .: "id"
-      uploadURL <- o .: "uploadURL"
-      return (CFUploadData id uploadURL) 
+      filename <- o .: "filename"
+      uploaded <- o .:  "uploaded"
+      requireSignedURLs <- o .: "requireSignedURLs"
+      variants <- o .: "variants"
+      return (CFUploadData id filename uploaded requireSignedURLs variants) 
+
+
+-- {
+--   "result": {
+--     "id": "945764ee-63c2-4036-c6fd-39c7576f7700",
+--     "filename": "bird2.jpg",
+--     "uploaded": "2023-03-16T16:22:10.542Z",
+--     "requireSignedURLs": false,
+--     "variants": [
+--       "https://imagedelivery.net/9U-0Y4sEzXlO6BXzTnQnYQ/945764ee-63c2-4036-c6fd-39c7576f7700/public"
+--     ]
+--   },
+--   "success": true,
+--   "errors": [],
+--   "messages": []
+-- }
 
 
 
@@ -84,10 +110,10 @@ instance FromJSON CFUploadResponse where
 uploadResult :: CFUploadResponse -> CFUploadData
 uploadResult (CFUploadResponse result  _ _ _) = result
 
-getUploadUrl :: CFUploadData -> String
-getUploadUrl (CFUploadData _ url)  = url
+getUploadUrl :: CFUploadData -> [String]
+getUploadUrl (CFUploadData _ _ _ _ variants)  = variants
 
-getUploadUrlFromResponse :: CFUploadResponse -> String
+getUploadUrlFromResponse :: CFUploadResponse -> [String]
 getUploadUrlFromResponse = getUploadUrl . uploadResult
 
 
@@ -102,6 +128,7 @@ uploadTheImage uploadUrl filename  = do
     response <- httpLbs request'' manager
     -- LBS.putStrLn $ responseBody response
     return $  show $ responseBody response
+
 
 
 requestCFToken :: IO (String)
@@ -132,14 +159,14 @@ prepareCFImage cfImage =
 
 downloadCFImage :: CFImage -> IO (GHC.IO.Exception.ExitCode)
 downloadCFImage image =
-   system ("wget -O " ++ "cf-image/" ++ (filename image) ++ " " ++  (url image))
+   system ("wget -O " ++ "cf-image/" ++ (imageFilename image) ++ " " ++  (url image))
 
 
 -- Tell Aeson how to create a CFImage object from JSON string.
 instance FromJSON CFImage where
      parseJSON (Object v) = CFImage <$>
                             v .:  (Data.Text.pack "url") <*> 
-                            v .:  (Data.Text.pack "filename") <*>
+                            v .:  (Data.Text.pack "imageFilename") <*>
                             v .:  (Data.Text.pack "username") 
                            
  
@@ -148,7 +175,7 @@ instance FromJSON CFImage where
 instance ToJSON CFImage where
      toJSON (CFImage url filename username) =
          object ["url" .= url,
-                 "filename" .= filename,
+                 "imageFilename" .= filename,
                  "username" .= username
                  ]
 
