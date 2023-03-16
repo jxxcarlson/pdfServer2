@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d4531935f54802afefc46365e3a87a3165b64b9f4392b3f5b01b016dd5251437
+-- hash: 9c9014767d5d185c38c2a7fd4925f10ad1d8c8df09bc90e7b90f283713eddd7c
 
 name:           pdfServerScotty
 version:        0.1.0.0
@@ -40,6 +40,7 @@ library
     , aeson
     , base >=4.7 && <5
     , bytestring
+    , filepath
     , http-client
     , http-client-tls
     , http-types
@@ -66,6 +67,7 @@ executable pdfServerScotty-exe
     , aeson
     , base >=4.7 && <5
     , bytestring
+    , filepath
     , http-client
     , http-client-tls
     , http-types
@@ -94,6 +96,7 @@ test-suite pdfServerScotty-test
     , aeson
     , base >=4.7 && <5
     , bytestring
+    , filepath
     , http-client
     , http-client-tls
     , http-types

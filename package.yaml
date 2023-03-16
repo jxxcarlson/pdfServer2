@@ -37,6 +37,8 @@ dependencies:
 - http-client
 - http-client-tls
 - bytestring
+- filepath
+
 
 
 library:

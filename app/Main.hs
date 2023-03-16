@@ -16,12 +16,13 @@ import Network.Wai.Middleware.Cors
 import Network.Wai                       (Application, Middleware)
 import Network.Wai.Middleware.AddHeaders (addHeaders)
 import Network.Wai.Middleware.RequestLogger
+import Data.Aeson (encode)
 import System.Process
 import Data.Text.Lazy (pack, unpack, replace, toLower, Text)
 import Pdf
 import Tar
 import Document (Document, writeTeXSourceFile, prepareData, docId)
-import Image (CFImage,prepareCFImage,requestCFToken)
+import Image (CFImage,prepareCFImage,requestCFToken, updateCFImage)
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Text.Lazy.Encoding as TLE
 
@@ -33,8 +34,10 @@ main = scotty 3000 $ do
     post "/image" $ do
         image <- jsonData :: ActionM CFImage
         liftIO $ prepareCFImage image
-        response <- liftIO $ requestCFToken
-        text $ pack $ response 
+        cfImageUploadUrl <- liftIO $ requestCFToken
+        -- liftIO $ uploadTheImage cfImageUploadUrl image
+        let updatedImage = updateCFImage cfImageUploadUrl image 
+        text $ blToText $ encode updatedImage 
 
     post "/pdf" $ do
         document <- jsonData :: ActionM Document
