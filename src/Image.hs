@@ -2,6 +2,7 @@
 
 module Image where
 
+import System.Environment (getEnv)
 import Data.Text.Lazy ( Text, pack )
 import Data.Text
 import Data.Text.Lazy.Encoding
@@ -100,11 +101,13 @@ uploadTheImage uploadUrl filename  = do
     request'' <- MultiPart.formDataBody [ MultiPart.partFileSource "file" requestFile] request'
     response <- httpLbs request'' manager
     -- LBS.putStrLn $ responseBody response
-    return $ show $ responseBody response
+    return $  show $ responseBody response
 
 
 requestCFToken :: IO (String)
 requestCFToken = do
+    cloudFlareAccountId <- getEnv "CF_ACCOUNT_ID"
+    cloudFlareAPIKey <- getEnv "CF_API_KEY"
     manager <- newTlsManager -- create a new manager
     let url = "https://api.cloudflare.com/client/v4/accounts/" ++ cloudFlareAccountId ++ "/images/v2/direct_upload"
         request = (parseRequest_ url)
@@ -118,10 +121,7 @@ requestCFToken = do
     case cfUploadResponse of 
       Nothing -> return $  show "Could not decode Cloudflare's response: " ++ (show $ responseBody response)
       Just daata -> return $ show (getUploadUrlFromResponse daata)
-    
-
-cloudFlareAPIKey = "wmBxrHLMHFfBa4P5M6gGfS-w8dYJELRu74dA_wcy"
-cloudFlareAccountId = "b9ef57c1554dd097a1cb697f5809acd9"
+  
 
 
 prepareCFImage :: CFImage -> IO()

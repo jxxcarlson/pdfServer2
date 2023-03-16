@@ -7,7 +7,6 @@
 module Main where
 
 import Control.Monad.IO.Class (liftIO) -- liftIO :: IO a -> m a
-
 import Web.Scotty
 import Network.HTTP.Types
 import Network.Wai.Middleware.Static ( (>->), addBase, noDots, staticPolicy )
@@ -40,9 +39,9 @@ main = scotty 3000 $ do
         let filename = getFilenameFromImage image
         -- OK TO HERE: 
         -- text $ pack cfImageUploadUrl'
-        cfUploadedImageUrl <- liftIO $ uploadTheImage cfImageUploadUrl' filename
+        cfUploadedImageResponse <- liftIO $ uploadTheImage cfImageUploadUrl' filename
         -- text $ blToText $ encode updatedImage 
-        text $ pack cfUploadedImageUrl
+        text $ pack cfUploadedImageResponse
 
     post "/pdf" $ do
         document <- jsonData :: ActionM Document
