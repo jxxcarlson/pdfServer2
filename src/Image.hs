@@ -10,14 +10,22 @@ import Control.Applicative
 import Data.List.Split
 import Data.List.Utils (replace)
 import Control.Applicative ((<*>), (<$>), empty)
-import Control.Monad (mzero)
+import Control.Monad (mzero, void)
 import GHC.IO.Exception
 import System.Process
 import System.FilePath
 import System.Path
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
-import Network.HTTP.Client.MultipartFormData
+-- import Network.HTTP.Client.MultipartFormData
+
+
+import qualified Data.ByteString.Lazy.Char8 as LBS
+-- import qualified Network.HTTP.Client        as Client
+-- import qualified Network.HTTP.Client.TLS    as TLS
+import qualified Network.HTTP.Client.MultipartFormData  as MultiPart
+
+
 import qualified Data.ByteString.Builder as B
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.ByteString.Char8 as BS
@@ -79,32 +87,22 @@ getUploadUrl (CFUploadData _ url)  = url
 getUploadUrlFromResponse :: CFUploadResponse -> String
 getUploadUrlFromResponse = getUploadUrl . uploadResult
 
+
+
 uploadTheImage :: String -> String -> IO ()
 uploadTheImage uploadUrl filename  = do
-  manager <- newManager defaultManagerSettings
-  request <- formDataRequest uploadUrl [(BS.pack "id", BS.pack filename)] [(BS.pack "file",  "cf-image/" </> filename )]
-  response <- httpLbs request manager
-  putStrLn $ "Status code: " ++ show (responseStatus response)
+    manager <- newTlsManager
+    request <- parseRequest uploadUrl
+    let request' = request {method = "POST"}
+    let requestFile = "cf-image/" ++ filename 
+    request'' <- MultiPart.formDataBody [ MultiPart.partBS "id" (BS.pack filename), MultiPart.partFileSource "file" requestFile] request'
+    response <- httpLbs request'' manager
+    LBS.putStrLn $ responseBody response
 
-
-formDataRequest :: String -> [(BS.ByteString, BS.ByteString)] -> [(BS.ByteString, FilePath)] -> IO Request
-formDataRequest url fields files = do
-  request <- parseRequest url
-  formData <- formDataBody bodyFields request
-  return $ formData { method = "POST" }
-  where
-    bodyFields = fields ++ Data.Text.map (\(name, fp) -> partFileSource name fp) files
-  
--- | Convert a (BS.ByteString, BS.ByteString) to a PartM IO
-toPartM :: (BS.ByteString, BS.ByteString) -> PartM IO
-toPartM (name, value) =
-  let part = partBS name value
-  in partBSBody part
 
 requestCFToken :: IO (String)
 requestCFToken = do
     manager <- newTlsManager -- create a new manager
-    -- (1) Get one time URL
     let url = "https://api.cloudflare.com/client/v4/accounts/" ++ cloudFlareAccountId ++ "/images/v2/direct_upload"
         request = (parseRequest_ url)
             { method = "POST"
