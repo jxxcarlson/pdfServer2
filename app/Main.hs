@@ -41,18 +41,23 @@ main = scotty 3000 $ do
         image <- jsonData :: ActionM CFImage.CFImage
         liftIO $ CFImage.downloadImage image
         cfImageUploadUrl <- liftIO $ Image.requestCFToken
-        -- let cfImageUploadUrl' = U.replace "\"" "" cfImageUploadUrl
-        -- let filename = getFilenameFromImage image
-        
-        -- cfUploadedImageResponse <- liftIO $ uploadTheImage cfImageUploadUrl filename
-        -- let cfUploadedImageResponse' = Data.Aeson.decode $ BL.pack cfUploadedImageResponse :: Maybe CFUploadResponse
-        -- let maybePublicUrl = fmap getUploadUrlFromResponse cfUploadedImageResponse'
-        -- cfUploadedImageResponse' <- Data.Aeson.encode cfUploadedImageResponse
-       
+        let cfImageUploadUrl' = U.replace "\"" "" cfImageUploadUrl
+        let filename = CFImage.getFilenameFromImage image
+        cfUploadedImageResponse <- liftIO $ Image.uploadTheImage cfImageUploadUrl filename
+        -- text $ pack $ cfUploadedImageResponse  -- Gives correct result
+        -- NOTE: Because 'pack' accepts 'cfUploadedImageResponse', the later has type String
+        -- The line below fails: src/CFUpload.hs:(66,6)-(71,27): Non-exhaustive patterns in function parseJSON
+        -- NOTE: Data.Aeson.decode requires an argument of type bytestring
+        -- NOTE (Robert Benson): The non-exhaustive patterns error must mean that parseJSON is getting called with a JSON Value
+        -- other than (Object v). Do you happen to have a way to see what actual response it's getting?
+        let cfUploadedImageResponse' = Data.Aeson.decode $ BL.pack cfUploadedImageResponse :: Maybe CFUpload.CFUploadResponse
+        text $ pack $ show cfUploadedImageResponse'
+        --let maybePublicUrls = fmap CFUpload.getUploadUrlFromResponse cfUploadedImageResponse'
+
         --WRONG -- Let publicImageUrl = getUploadUrlFromResponse cfUploadedImageResponse
         -- text $ pack $ show maybePublicUrl
         -- text $ pack cfUploadedImageResponse
-        text $ pack $ show cfImageUploadUrl
+        -- text $ pack $ show cfImageUploadUrl
 
     post "/pdf" $ do
         document <- jsonData :: ActionM Document
