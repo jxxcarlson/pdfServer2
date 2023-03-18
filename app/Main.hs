@@ -40,7 +40,7 @@ main = scotty 3000 $ do
     post "/image" $ do
         image <- jsonData :: ActionM CFImage.CFImage
         liftIO $ CFImage.downloadImage image
-        cfImageUploadUrl <- liftIO $ Image.requestCFToken
+        cfImageUploadUrl <- liftIO Image.requestCFToken
         let cfImageUploadUrl' = U.replace "\"" "" cfImageUploadUrl
         let filename = CFImage.getFilenameFromImage image
         cfUploadedImageResponse <- liftIO $ Image.uploadTheImage cfImageUploadUrl filename
