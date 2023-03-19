@@ -18,6 +18,7 @@ import Data.Aeson
 import System.Process
 import Data.Text.Lazy (pack, unpack, replace, toLower, Text)
 
+
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Text.Lazy.Encoding as TLE
 import qualified Data.List.Utils as U
@@ -51,8 +52,6 @@ main = scotty 3000 $ do
             Left err -> text $ pack err                     -- (7)  Error in $: parsing CFUpload.CFUploadResponse(CFUploadResponse) failed, expected Object, but encountered String
             Right goodStuff-> text $ pack $ show goodStuff  -- (8)
 
-
-
     post "/pdf" $ do
         document <- jsonData :: ActionM Document
         liftIO $ Document.prepareData document
@@ -79,9 +78,6 @@ main = scotty 3000 $ do
 
     post "/hello" $ do
        text "Yes, I am still here\n"
-
-    middleware $ staticPolicy (noDots >-> addBase "outbox")
-
 
     middleware $ staticPolicy (noDots >-> addBase "outbox")
 
