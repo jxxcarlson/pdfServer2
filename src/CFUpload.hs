@@ -10,33 +10,33 @@ import Data.Text
 
 data CFUploadResponse = CFUploadResponse
   {
-    result   :: CFUploadResult,
+    -- result   :: CFUploadResult,
     success  :: Bool,
     errors   :: [String],
     messages :: [String]
   } deriving (Generic, Show)
 
-data CFUploadResult = CFUploadResult {
-    id                :: String,
-    filename          :: String,
-    uploaded          :: String,
-    requireSignedURLs :: Bool,
-    variants          :: [String]
-  } deriving  (Generic, Show)
+-- data CFUploadResult = CFUploadResult {
+--     id                :: String,
+--     filename          :: String,
+--     uploaded          :: String,
+--     requireSignedURLs :: Bool,
+--     variants          :: [String]
+--   } deriving  (Generic, Show)
 
 instance FromJSON CFUploadResponse 
 
-instance FromJSON CFUploadResult 
+-- instance FromJSON CFUploadResult 
   
 
-uploadResult :: CFUploadResponse -> CFUploadResult
-uploadResult (CFUploadResponse result _ _ _) = result
+-- uploadResult :: CFUploadResponse -> CFUploadResult
+-- uploadResult (CFUploadResponse result _ _ _) = result
 
-getVariants :: CFUploadResult -> [String]
-getVariants (CFUploadResult _ _ _ _ variants)  = variants
+-- getVariants :: CFUploadResult -> [String]
+-- getVariants (CFUploadResult _ _ _ _ variants)  = variants
 
-getUploadUrlFromResponse :: CFUploadResponse -> [String]
-getUploadUrlFromResponse = getVariants . uploadResult
+-- getUploadUrlFromResponse :: CFUploadResponse -> [String]
+-- getUploadUrlFromResponse = getVariants . uploadResult
 
 
 
