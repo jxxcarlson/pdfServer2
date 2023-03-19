@@ -17,18 +17,18 @@ import Network.Wai.Middleware.RequestLogger
 import Data.Aeson
 import System.Process
 import Data.Text.Lazy (pack, unpack, replace, toLower, Text)
-import Pdf
-import Tar
-import Document (Document, writeTeXSourceFile, prepareData, docId)
 
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Text.Lazy.Encoding as TLE
 import qualified Data.List.Utils as U
 
+import Document (Document, writeTeXSourceFile, prepareData, docId)
 import qualified Image 
 import qualified CFImage       
 import qualified CFUpload     
 import qualified CFOnetimeUrl  
+import Pdf
+import Tar
 
 main = scotty 3000 $ do
  
