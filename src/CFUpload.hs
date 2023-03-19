@@ -7,24 +7,27 @@ module CFUpload where
 import Data.Aeson
 import GHC.Generics
 import Data.Text
+import qualified Data.ByteString.Lazy.Char8 as BL
 
 data CFUploadResponse = CFUploadResponse
   {
-    -- result   :: CFUploadResult,
+    result   :: CFUploadResult,
     success  :: Bool,
     errors   :: [String],
     messages :: [String]
   } deriving (Generic, Show)
 
--- data CFUploadResult = CFUploadResult {
---     id                :: String,
---     filename          :: String,
---     uploaded          :: String,
---     requireSignedURLs :: Bool,
---     variants          :: [String]
---   } deriving  (Generic, Show)
+data CFUploadResult = CFUploadResult {
+    id                :: String,
+    filename          :: String,
+    uploaded          :: String,
+    requireSignedURLs :: Bool,
+    variants          :: [String]
+  } deriving  (Generic, Show)
 
-instance FromJSON CFUploadResponse 
+instance FromJSON CFUploadResponse
+
+instance FromJSON CFUploadResult
 
 testResponse = "{\n  \"result\": {\n    \"id\": \"49660d63-a43f-4011-1a7a-ff6435305d00\",\n    \"filename\": \"bird2.jpg\",\n    \"uploaded\": \"2023-03-16T23:08:22.768Z\",\n    \"requireSignedURLs\": false,\n    \"variants\": [\n      \"https://imagedelivery.net/9U-0Y4sEzXlO6BXzTnQnYQ/49660d63-a43f-4011-1a7a-ff6435305d00/public\"\n    ]\n  },\n  \"success\": true,\n  \"errors\": [],\n  \"messages\": []\n}"
 
