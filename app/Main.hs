@@ -51,11 +51,11 @@ main = scotty 3000 $ do
         -- NOTE (Robert Benson): The non-exhaustive patterns error must mean that parseJSON is getting called with a JSON Value
         -- other than (Object v). Do you happen to have a way to see what actual response it's getting?
        
-        -- let cfUploadedImageResponse' = eitherDecode $ BL.pack cfUploadedImageResponse :: Either String (Maybe CFUpload.CFUploadResponse)  -- (7)
-        -- case cfUploadedImageResponse' of 
-        --     Left err -> text $ pack err
-        --     Right goodStuff-> text $ pack $ show goodStuff  -- (8)
-        text $ pack cfUploadedImageResponse
+        let cfUploadedImageResponse' = eitherDecode $ BL.pack cfUploadedImageResponse :: Either String (Maybe CFUpload.CFUploadResponse)  -- (7)
+        case cfUploadedImageResponse' of 
+            Left err -> text $ pack err
+            Right goodStuff-> text $ pack $ show goodStuff  -- (8)
+        -- text $ pack cfUploadedImageResponse
 
         --let maybePublicUrls = fmap CFUpload.getUploadUrlFromResponse cfUploadedImageResponse'
 
