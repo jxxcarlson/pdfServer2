@@ -1,14 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module CFUpload where
 
 
+import Data.Aeson
+import GHC.Generics
 import System.Environment (getEnv)
 import Data.Text.Lazy ( Text, pack )
 import Data.Text
 import Data.Text.Lazy.Encoding
-import Data.Aeson
-import Control.Applicative
+
+-- import Control.Applicative
 import Data.List.Split
 import Data.List.Utils (replace)
 import Control.Applicative ((<*>), (<$>), empty)
@@ -64,7 +67,7 @@ data CFUploadResponse = CFUploadResponse
     success  :: Bool,
     errors   :: [String],
     messages :: [String]
-  } deriving Show
+  } deriving (Generic, Show)
 
 data CFUploadResult = CFUploadResult {
     id                :: String,
@@ -72,26 +75,11 @@ data CFUploadResult = CFUploadResult {
     uploaded          :: String,
     requireSignedURLs :: Bool,
     variants          :: [String]
-  } deriving Show
+  } deriving  (Generic, Show)
 
--- Tell Aeson how to convert a CFUploadResponse object to a JSON string.
-instance FromJSON CFUploadResponse where
-    parseJSON = withObject "CFUploadResponse" $ \o -> do
-      result <- o .: "result"
-      success <- o .: "success"
-      errors <- o .: "errors"
-      messages <- o .: "messages"
-      return (CFUploadResponse result success errors messages)
-    -- parseJSON other = fail ("Invalid JSON for CFUploadResponse: " ++ show other)
+instance FromJSON CFUploadResponse 
 
-instance FromJSON CFUploadResult where
-    parseJSON = withObject "CFUploadResult" $ \o -> do
-      id <- o .: "id"
-      filename <- o .: "filename"
-      uploaded <- o .: "uploaded"
-      requireSignedURLs <- o .: "requireSignedURLs"
-      variants <- o .: "variants"
-      return (CFUploadResult id filename uploaded requireSignedURLs variants)
+instance FromJSON CFUploadResult 
   
 
 uploadResult :: CFUploadResponse -> CFUploadResult
@@ -103,3 +91,7 @@ getVariants (CFUploadResult _ _ _ _ variants)  = variants
 getUploadUrlFromResponse :: CFUploadResponse -> [String]
 getUploadUrlFromResponse = getVariants . uploadResult
 
+
+
+-- REFERENCES
+-- https://www.fpcomplete.com/haskell/library/aeson/
