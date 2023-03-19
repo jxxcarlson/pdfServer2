@@ -2,6 +2,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Document (Document, fixGraphicsPath, docId, writeTeXSourceFile, prepareData) where
+
+  
 import Data.Text.Lazy ( unpack, Text )
 import Data.Text.Lazy.Encoding
 import Data.Aeson
