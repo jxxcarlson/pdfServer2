@@ -36,17 +36,14 @@ testDecode str = Data.Aeson.eitherDecode $ BL.pack str :: Either String (Maybe C
 myDecode str = Data.Aeson.decode $ BL.pack str :: Maybe CFUpload.CFUploadResponse 
 
 
--- instance FromJSON CFUploadResult 
-  
+uploadResult :: CFUploadResponse -> CFUploadResult
+uploadResult (CFUploadResponse result _ _ _) = result
 
--- uploadResult :: CFUploadResponse -> CFUploadResult
--- uploadResult (CFUploadResponse result _ _ _) = result
+getVariants :: CFUploadResult -> [String]
+getVariants (CFUploadResult _ _ _ _ variants)  = variants
 
--- getVariants :: CFUploadResult -> [String]
--- getVariants (CFUploadResult _ _ _ _ variants)  = variants
-
--- getUploadUrlFromResponse :: CFUploadResponse -> [String]
--- getUploadUrlFromResponse = getVariants . uploadResult
+getUploadUrlFromResponse :: CFUploadResponse -> [String]
+getUploadUrlFromResponse = getVariants . uploadResult
 
 
 

@@ -87,10 +87,13 @@ requestCFToken = do
             }
     response <- httpLbs request manager 
     let responseBody' =  BL.unpack $ responseBody response
-    let cfOnetimeUrlResponse = (Data.Aeson.decode (responseBody response)  :: Maybe CFOnetimeUrl.CFOnetimeUrl)
+    let cfOnetimeUrlResponse = (Data.Aeson.eitherDecode (responseBody response)  :: Either String (Maybe CFOnetimeUrl.CFOnetimeUrl))
     case cfOnetimeUrlResponse of 
-      Nothing -> return $  show "Could not decode Cloudflare's response: " ++ (show $ responseBody response)
-      Just daata -> return (CFOnetimeUrl.uploadUrlFromResponse daata)
+      Left err -> return  err
+      Right stuff -> 
+        case stuff of
+          Nothing -> return "Werid! got Nothing when I shouldn't have"
+          Just realStuff -> return (CFOnetimeUrl.uploadURLFromResponse realStuff)
     -- return $ show $ cfOnetimeUrlResponse 
   
 

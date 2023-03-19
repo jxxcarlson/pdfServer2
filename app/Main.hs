@@ -7,7 +7,6 @@
 module Main where
 
 import Control.Monad.IO.Class (liftIO) -- liftIO :: IO a -> m a
-import Web.Scotty
 import Network.HTTP.Types
 import Network.Wai.Middleware.Static ( (>->), addBase, noDots, staticPolicy )
 import Web.Scotty
@@ -15,7 +14,7 @@ import Network.Wai.Middleware.Cors
 import Network.Wai                       (Application, Middleware)
 import Network.Wai.Middleware.AddHeaders (addHeaders)
 import Network.Wai.Middleware.RequestLogger
-import Data.Aeson (encode, eitherDecode)
+import Data.Aeson
 import System.Process
 import Data.Text.Lazy (pack, unpack, replace, toLower, Text)
 import Pdf
@@ -25,7 +24,6 @@ import Document (Document, writeTeXSourceFile, prepareData, docId)
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Text.Lazy.Encoding as TLE
 import qualified Data.List.Utils as U
-import Data.Aeson
 
 import qualified Image 
 import qualified CFImage       
@@ -39,30 +37,21 @@ main = scotty 3000 $ do
 
     post "/image" $ do
         image <- jsonData :: ActionM CFImage.CFImage  -- (1)
-        liftIO $ CFImage.downloadImage image -- (2)
-        cfImageUploadUrl <- liftIO Image.requestCFToken -- (3)
-        let cfImageUploadUrl' = U.replace "\"" "" cfImageUploadUrl -- (4)
-        let filename = CFImage.getFilenameFromImage image    -- (5)
-        cfUploadedImageResponse <- liftIO $ Image.uploadTheImage cfImageUploadUrl filename -- (6)
-        -- text $ pack cfUploadedImageResponse  -- Gives correct result
-        -- NOTE: Because 'pack' accepts 'cfUploadedImageResponse', the later has type String
-        -- The line below fails: src/CFUpload.hs:(66,6)-(71,27): Non-exhaustive patterns in function parseJSON
-        -- NOTE: Data.Aeson.decode requires an argument of type bytestring
-        -- NOTE (Robert Benson): The non-exhaustive patterns error must mean that parseJSON is getting called with a JSON Value
-        -- other than (Object v). Do you happen to have a way to see what actual response it's getting?
+        let filename = CFImage.getFilenameFromImage image    -- (2)
+
+        liftIO $ CFImage.downloadImage image -- (3)
+        cfImageUploadUrl <- liftIO Image.requestCFToken -- (4)
+        -- OK to here :::: text $ pack cfImageUploadUrl :::: cfImageUploadUrl = "https://upload.imagedelivery.net/9U-0Y4sEzXlO6BXzTnQnYQ/4015d17d-7732-4e45-e87e-6c07ff6f4b00"
+        
+        cfUploadedImageResponse <- liftIO $ Image.uploadTheImage cfImageUploadUrl filename -- (5)
+        -- OK to here :::: text $ pack cfUploadedImageResponse  -- ::: "{\n  \"result\": {\n    \"id\": \"085ddcc3-988a-40b1-9f73-62f24d965700\",\n    \"filename\": \"bird2.jpg\",\n    \"uploaded\": \"2023-03-19T14:44:12.579Z\",\n    \"requireSignedURLs\": false,\n    \"variants\": [\n      \"https://imagedelivery.net/9U-0Y4sEzXlO6BXzTnQnYQ/085ddcc3-988a-40b1-9f73-62f24d965700/public\"\n    ]\n  },\n  \"success\": true,\n  \"errors\": [],\n  \"messages\": []\n}"
        
-        let cfUploadedImageResponse' = eitherDecode $ BL.pack cfUploadedImageResponse :: Either String (Maybe CFUpload.CFUploadResponse)  -- (7)
+        let cfUploadedImageResponse' = eitherDecode $ BL.pack cfUploadedImageResponse :: Either String (Maybe CFUpload.CFUploadResponse)  -- (6)
         case cfUploadedImageResponse' of 
-            Left err -> text $ pack err
+            Left err -> text $ pack err                     -- (7)  Error in $: parsing CFUpload.CFUploadResponse(CFUploadResponse) failed, expected Object, but encountered String
             Right goodStuff-> text $ pack $ show goodStuff  -- (8)
-        -- text $ pack cfUploadedImageResponse
 
-        --let maybePublicUrls = fmap CFUpload.getUploadUrlFromResponse cfUploadedImageResponse'
 
-        --WRONG -- Let publicImageUrl = getUploadUrlFromResponse cfUploadedImageResponse
-        -- text $ pack $ show maybePublicUrl
-        -- text $ pack cfUploadedImageResponse
-        -- text $ pack $ show cfImageUploadUrl
 
     post "/pdf" $ do
         document <- jsonData :: ActionM Document
@@ -83,7 +72,7 @@ main = scotty 3000 $ do
 
     get "/tar/:id" $ do
         docId <- param "id"
-        file ("outbox/" ++ (unpack docId) )
+        file ("outbox/" ++ unpack docId )
 
     get "/hello" $ do
         html $ mconcat ["Yes, I am still here\n"]

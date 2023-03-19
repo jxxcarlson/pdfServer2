@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Document (Document, fixGraphicsPath, docId, writeTeXSourceFile, prepareData) where
@@ -9,50 +10,30 @@ import System.Process
 import Data.List.Split
 import Data.List.Utils (replace)
 import GHC.IO.Exception
+import GHC.Generics
 
 -- Define the Article constructor
 -- e.g. Article 12 "some title" "some body text"
 data Document = Document Text Text [ImageElement] [Text]-- id content imageElements packageList
-     deriving (Show)
+     deriving (Show, Generic)
 
 
 data ImageElement = ImageElement
       {
         url        :: String
       , filename   :: String
-      } deriving Show
+      } deriving (Show, Generic)
 
 -- Tell Aeson how to create a Document object from JSON string.
-instance FromJSON Document where
-     parseJSON (Object v) = Document <$>
-                            v .: "id" <*> 
-                            v .: "content" <*>
-                            v .: "urlList" <*>
-                            v .: "packageList"
+instance FromJSON Document
  
 
 -- Tell Aeson how to convert a Document object to a JSON string.
-instance ToJSON Document where
-     toJSON (Document id content imageUrls packageList) =
-         object ["id" .= id,
-                 "content" .= content,
-                 "urlList" .= imageUrls,
-                 "packageList" .= packageList
-                 ]
+instance ToJSON Document
 
+instance FromJSON ImageElement
 
-instance FromJSON ImageElement where
-  parseJSON = withObject "ImageElement" $ \o -> do
-    url <- o .: "url"
-    filename <- o .: "filename"
-    return $ ImageElement url filename
-
-instance ToJSON ImageElement where
-     toJSON (ImageElement url filename) =
-         object ["id" .= url,
-                 "filename" .= filename
-                 ]
-
+instance ToJSON ImageElement
 
 docId :: Document -> Text
 docId (Document id _ _ _) = id
@@ -67,37 +48,35 @@ packageList :: Document -> [Text]
 packageList (Document _  _ _ packageList) = packageList
 
 packagePaths doc = 
-  (joinStrings " " $ fmap (\s -> "package/" ++ s) $ fmap unpack $ packageList $ doc)
-
+  joinStrings " " $ fmap (\s -> "package/" ++ s) $ fmap unpack $ packageList $ doc
 
 fixGraphicsPath = replace "\\graphicspath{ {image/} }" "\\graphicspath{{inbox/tmp/image/}}"
 
 writeTeXSourceFile :: Document -> IO()
 writeTeXSourceFile doc = 
   let
-    texFilename = "inbox/" ++ (unpack $ docId doc) 
+    docId' = unpack $ docId doc 
+    texFilename = "inbox/" ++ docId'
     contents = unpack $ content doc
   in
     writeFile texFilename contents
 
-
 downloadImage :: ImageElement -> IO (GHC.IO.Exception.ExitCode)
 downloadImage element =
-   system ("wget -O " ++ "image/" ++ (filename element) ++ " " ++  (url element))
+   system ("wget -O " ++ "image/" ++ filename element ++ " " ++  url element)
 
 prepareData :: Document -> IO()
 prepareData doc =
   let
-      preparePackages = "cp " ++ (packagePaths doc) ++ " inbox/"
+      preparePackages = "cp " ++ packagePaths doc ++ " inbox/"
   in
     do
       mapM_ downloadImage (urlList doc) -- write the image files to ./image
       system preparePackages            -- copy any packages needed from ./package to ./inbox
       writeTeXSourceFile doc            -- write the tex file to ./inbox
      
-      
 
 joinStrings :: String -> [String] -> String
 joinStrings separator [] = ""
 joinStrings separator [x] = x
-joinStrings separator (x:xs) = x ++ separator ++ (joinStrings separator xs) 
+joinStrings separator (x:xs) = x ++ separator ++ joinStrings separator xs
