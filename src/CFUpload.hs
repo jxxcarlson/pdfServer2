@@ -1,4 +1,3 @@
-
 {-# LANGUAGE OverloadedStrings #-}
 
 module CFUpload where
@@ -36,13 +35,27 @@ import qualified Data.Text.Encoding as TE
 import qualified Data.Text.Lazy.Encoding as TLE
 import qualified Data.Text.Lazy as TL
 
-testResponse = "{\n  \"result\": {\n    \"id\": \"49660d63-a43f-4011-1a7a-ff6435305d00\",\n    \"filename\": \"bird2.jpg\",\n    \"uploaded\": \"2023-03-16T23:08:22.768Z\",\n    \"requireSignedURLs\": false,\n    \"variants\": [\n      \"https://imagedelivery.net/9U-0Y4sEzXlO6BXzTnQnYQ/49660d63-a43f-4011-1a7a-ff6435305d00/public\"\n    ]\n  },\n  \"success\": true,\n  \"errors\": [],\n  \"messages\": []\n}"
+testResponse = "{\n  \"result\": {\n    \"id\": \"673996fb-4d26-4332-6e6b-e8bf7b608500\",\n    \"filename\": \"bird2.jpg\",\n    \"uploaded\": \"2023-03-18T22:53:56.705Z\",\n    \"requireSignedURLs\": false,\n    \"variants\": [\n      \"https://imagedelivery.net/9U-0Y4sEzXlO6BXzTnQnYQ/673996fb-4d26-4332-6e6b-e8bf7b608500/public\"\n    ]\n  },\n  \"success\": true,\n  \"errors\": [],\n  \"messages\": []\n}"
 
-testDecode str = Data.Aeson.eitherDecode $ BL.pack str :: Either String (Maybe CFUpload.CFUploadResponse)
+myDecode str = Data.Aeson.eitherDecode $ BL.pack str :: Either String (Maybe CFUpload.CFUploadResponse)
 
-myDecode str = Data.Aeson.decode $ BL.pack str :: Maybe CFUpload.CFUploadResponse 
+-- myDecode str = Data.Aeson.decode $ BL.pack str :: Maybe CFUpload.CFUploadResponse 
 
-
+-- {
+--   "result": {
+--     "id": "2e339309-f421-476a-4766-54b384761100",
+--     "filename": "bird2.jpg",
+--     "uploaded": "2023-03-19T05:40:38.491Z",
+--     "requireSignedURLs": false,
+--     "variants": [
+--       "https://imagedelivery.net/9U-0Y4sEzXlO6BXzTnQnYQ/2e339309-f421-476a-4766-54b384761100/public"
+--     ]
+--   },
+--   "success": true,
+--   "errors": [],
+--   "messages": []
+-- }  
+      
 -- CF UPLOAD RESPONSE
 
 data CFUploadResponse = CFUploadResponse
@@ -61,28 +74,25 @@ data CFUploadResult = CFUploadResult {
     variants          :: [String]
   } deriving Show
 
-
-instance FromJSON CFUploadResponse where
-     parseJSON (Object v) =
-        CFUploadResponse     <$>
-            v .: "result"    <*> 
-            v .: "success"   <*>
-            v .: "errors"    <*>
-            v .: "messages"
-
 -- Tell Aeson how to convert a CFUploadResponse object to a JSON string.
+instance FromJSON CFUploadResponse where
+    parseJSON = withObject "CFUploadResponse" $ \o -> do
+      result <- o .: "result"
+      success <- o .: "success"
+      errors <- o .: "errors"
+      messages <- o .: "messages"
+      return (CFUploadResponse result success errors messages)
+    -- parseJSON other = fail ("Invalid JSON for CFUploadResponse: " ++ show other)
 
 instance FromJSON CFUploadResult where
     parseJSON = withObject "CFUploadResult" $ \o -> do
-      id <- o .: Data.Text.pack  "id"
-      filename <- o .: Data.Text.pack "filename"
-      uploaded <- o .:  Data.Text.pack "uploaded"
-      requireSignedURLs <- o .: Data.Text.pack "requireSignedURLs"
-      variants <- o .: Data.Text.pack  "variants"
-      return (CFUploadResult id filename uploaded requireSignedURLs variants) 
-      
-
-
+      id <- o .: "id"
+      filename <- o .: "filename"
+      uploaded <- o .: "uploaded"
+      requireSignedURLs <- o .: "requireSignedURLs"
+      variants <- o .: "variants"
+      return (CFUploadResult id filename uploaded requireSignedURLs variants)
+  
 
 uploadResult :: CFUploadResponse -> CFUploadResult
 uploadResult (CFUploadResponse result _ _ _) = result

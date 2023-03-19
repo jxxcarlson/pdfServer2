@@ -15,7 +15,7 @@ import Network.Wai.Middleware.Cors
 import Network.Wai                       (Application, Middleware)
 import Network.Wai.Middleware.AddHeaders (addHeaders)
 import Network.Wai.Middleware.RequestLogger
-import Data.Aeson (encode)
+import Data.Aeson (encode, eitherDecode)
 import System.Process
 import Data.Text.Lazy (pack, unpack, replace, toLower, Text)
 import Pdf
@@ -38,20 +38,23 @@ main = scotty 3000 $ do
     middleware logStdoutDev 
 
     post "/image" $ do
-        image <- jsonData :: ActionM CFImage.CFImage
-        liftIO $ CFImage.downloadImage image
-        cfImageUploadUrl <- liftIO Image.requestCFToken
-        let cfImageUploadUrl' = U.replace "\"" "" cfImageUploadUrl
-        let filename = CFImage.getFilenameFromImage image
-        cfUploadedImageResponse <- liftIO $ Image.uploadTheImage cfImageUploadUrl filename
-        -- text $ pack $ cfUploadedImageResponse  -- Gives correct result
+        image <- jsonData :: ActionM CFImage.CFImage  -- (1)
+        liftIO $ CFImage.downloadImage image -- (2)
+        cfImageUploadUrl <- liftIO Image.requestCFToken -- (3)
+        let cfImageUploadUrl' = U.replace "\"" "" cfImageUploadUrl -- (4)
+        let filename = CFImage.getFilenameFromImage image    -- (5)
+        cfUploadedImageResponse <- liftIO $ Image.uploadTheImage cfImageUploadUrl filename -- (6)
+        -- text $ pack cfUploadedImageResponse  -- Gives correct result
         -- NOTE: Because 'pack' accepts 'cfUploadedImageResponse', the later has type String
         -- The line below fails: src/CFUpload.hs:(66,6)-(71,27): Non-exhaustive patterns in function parseJSON
         -- NOTE: Data.Aeson.decode requires an argument of type bytestring
         -- NOTE (Robert Benson): The non-exhaustive patterns error must mean that parseJSON is getting called with a JSON Value
         -- other than (Object v). Do you happen to have a way to see what actual response it's getting?
-        let cfUploadedImageResponse' = Data.Aeson.decode $ BL.pack cfUploadedImageResponse :: Maybe CFUpload.CFUploadResponse
-        text $ pack $ show cfUploadedImageResponse'
+        let cfUploadedImageResponse' = eitherDecode $ BL.pack cfUploadedImageResponse :: Either String (Maybe CFUpload.CFUploadResponse)  -- (7)
+        case cfUploadedImageResponse' of 
+            Left err -> text $ pack err
+            Right goodStuff-> text $ pack $ show goodStuff  -- (8)
+
         --let maybePublicUrls = fmap CFUpload.getUploadUrlFromResponse cfUploadedImageResponse'
 
         --WRONG -- Let publicImageUrl = getUploadUrlFromResponse cfUploadedImageResponse
