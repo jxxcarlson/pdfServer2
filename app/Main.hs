@@ -40,12 +40,11 @@ main = scotty 3000 $ do
     middleware logStdoutDev 
 
     post "/image" $ do
-        image <- jsonData :: ActionM CFImage.CFImage  -- (1)
-        let filename = CFImage.getFilenameFromImage image    -- (2)
-
-        liftIO $ CFImage.downloadImage image -- (3)
-        cfImageUploadUrl <- liftIO Image.requestCFToken -- (4)
-        cfUploadedImageResponse <- liftIO $ Image.uploadTheImage cfImageUploadUrl filename -- (5)         
+        image <- jsonData :: ActionM CFImage.CFImage
+        let filename = CFImage.getFilenameFromImage image
+        liftIO $ CFImage.downloadImage image
+        cfImageUploadUrl <- liftIO Image.requestCFToken
+        cfUploadedImageResponse <- liftIO $ Image.uploadTheImage cfImageUploadUrl filename       
         case CFUpload.getVariantsP cfUploadedImageResponse of
             Left errString -> text $ pack errString
             Right goodString -> text $ pack (Data.List.intercalate ", " goodString)

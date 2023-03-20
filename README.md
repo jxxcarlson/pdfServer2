@@ -59,3 +59,7 @@ my DigitalOcean "rose" box in `./pdfServer`
  
 - `stack install MissingH` is needed
 - `hoogle`
+
+
+This is a test.
+
