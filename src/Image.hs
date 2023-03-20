@@ -8,6 +8,7 @@ import Data.Text
 import Data.Text.Lazy.Encoding
 import Data.Aeson
 import Control.Applicative
+
 import Data.List.Split
 import Data.List.Utils (replace)
 import Control.Applicative ((<*>), (<$>), empty)

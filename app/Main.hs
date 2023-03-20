@@ -6,7 +6,9 @@
 
 module Main where
 
+import Data.Text.Unsafe (inlinePerformIO)
 import Control.Monad.IO.Class (liftIO) -- liftIO :: IO a -> m a
+import Control.Monad
 import Network.HTTP.Types
 import Network.Wai.Middleware.Static ( (>->), addBase, noDots, staticPolicy )
 import Web.Scotty
@@ -15,6 +17,7 @@ import Network.Wai                       (Application, Middleware)
 import Network.Wai.Middleware.AddHeaders (addHeaders)
 import Network.Wai.Middleware.RequestLogger
 import Data.Aeson
+import Data.List
 import System.Process
 import Data.Text.Lazy (pack, unpack, replace, toLower, Text)
 
@@ -26,7 +29,7 @@ import qualified Data.List.Utils as U
 import Document (Document, writeTeXSourceFile, prepareData, docId)
 import qualified Image 
 import qualified CFImage       
-import qualified CFUpload     
+import qualified CFUpload (getVariantsP, CFUploadResponse)   
 import qualified CFOnetimeUrl  
 import Pdf
 import Tar
@@ -46,11 +49,19 @@ main = scotty 3000 $ do
         
         cfUploadedImageResponse <- liftIO $ Image.uploadTheImage cfImageUploadUrl filename -- (5)
         -- OK to here :::: text $ pack cfUploadedImageResponse  -- ::: "{\n  \"result\": {\n    \"id\": \"085ddcc3-988a-40b1-9f73-62f24d965700\",\n    \"filename\": \"bird2.jpg\",\n    \"uploaded\": \"2023-03-19T14:44:12.579Z\",\n    \"requireSignedURLs\": false,\n    \"variants\": [\n      \"https://imagedelivery.net/9U-0Y4sEzXlO6BXzTnQnYQ/085ddcc3-988a-40b1-9f73-62f24d965700/public\"\n    ]\n  },\n  \"success\": true,\n  \"errors\": [],\n  \"messages\": []\n}"
-       
-        let cfUploadedImageResponse' = eitherDecode $ BL.pack cfUploadedImageResponse :: Either String (Maybe CFUpload.CFUploadResponse)  -- (6)
-        case cfUploadedImageResponse' of 
-            Left err -> text $ pack err                     -- (7)  Error in $: parsing CFUpload.CFUploadResponse(CFUploadResponse) failed, expected Object, but encountered String
-            Right goodStuff-> text $ pack $ show goodStuff  -- (8)
+
+        let output =  CFUpload.getVariantsP $ BL.pack cfUploadedImageResponse :: (Maybe [String]) -- FAILS HERE! (output =  Nothing)
+         
+        let condense maybeStringList = case maybeStringList of 
+              Nothing -> "Error: no data from input:: " ++ cfUploadedImageResponse
+              Just strings -> Data.List.intercalate ", " strings
+
+        let output2 =  condense output :: String
+
+        text $ pack output2
+        -- text $ pack $ show output-- cfUploadedImageResponse
+        -- let cfUploadedImageResponse' = eitherDecode $ BL.pack cfUploadedImageResponse :: Either String (Maybe CFUpload.CFUploadResponse)  -- (6)
+
 
     post "/pdf" $ do
         document <- jsonData :: ActionM Document

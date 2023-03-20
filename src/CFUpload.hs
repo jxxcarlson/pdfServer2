@@ -83,15 +83,18 @@ nested = withObject "ContactInfo" $ \obj -> do
 --  GHCi > parseMaybe variantsP cfData
 -- Just ["foobar@yada.io/bird.jpg"]
 variantsP :: Value -> Parser [String]
-variantsP = withObject "CFUploadResult" $ \obj -> do
+variantsP = withObject "CFUploadResponse" $ \obj -> do
     variants <- obj .: "result" .-> "variants"
     return variants
-    
--- getVariantsP :: BL.ByteString -> Either String [String]
 
--- getVariantsPP input = do
---   object <- eitherDecode input
---   variantsP object
+
+getVariantsP input =
+  case eitherDecode input of
+     Left _ ->  Nothing
+     Right value -> parseMaybe variantsP value
+
+
+testInput = "{\n  \"result\": {\n    \"id\": \"d637143d-5d4f-4f03-5238-f352c96e0800\",\n    \"filename\": \"bird2.jpg\",\n    \"uploaded\": \"2023-03-20T03:57:30.745Z\",\n    \"requireSignedURLs\": false,\n    \"variants\": [\n      \"https://imagedelivery.net/9U-0Y4sEzXlO6BXzTnQnYQ/d637143d-5d4f-4f03-5238-f352c96e0800/public\"\n    ]\n  },\n  \"success\": true,\n  \"errors\": [],\n  \"messages\": []\n}"
 
 
 instance FromJSON CFUploadResponse where
