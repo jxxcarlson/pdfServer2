@@ -45,27 +45,10 @@ main = scotty 3000 $ do
 
         liftIO $ CFImage.downloadImage image -- (3)
         cfImageUploadUrl <- liftIO Image.requestCFToken -- (4)
-        -- OK to here :::: text $ pack cfImageUploadUrl :::: cfImageUploadUrl = "https://upload.imagedelivery.net/9U-0Y4sEzXlO6BXzTnQnYQ/4015d17d-7732-4e45-e87e-6c07ff6f4b00"
-        
-        cfUploadedImageResponse <- liftIO $ Image.uploadTheImage cfImageUploadUrl filename -- (5)
-        -- OK to here :::: text $ pack cfUploadedImageResponse  -- ::: "{\n  \"result\": {\n    \"id\": \"085ddcc3-988a-40b1-9f73-62f24d965700\",\n    \"filename\": \"bird2.jpg\",\n    \"uploaded\": \"2023-03-19T14:44:12.579Z\",\n    \"requireSignedURLs\": false,\n    \"variants\": [\n      \"https://imagedelivery.net/9U-0Y4sEzXlO6BXzTnQnYQ/085ddcc3-988a-40b1-9f73-62f24d965700/public\"\n    ]\n  },\n  \"success\": true,\n  \"errors\": [],\n  \"messages\": []\n}"
-        
-        let output =  CFUpload.getVariantsP $ BL.pack cfUploadedImageResponse :: (Either String [String]) -- FAILS HERE! (output =  Nothing)
-         
-        let condense maybeStringList = case maybeStringList of 
-              Nothing -> "Error: no data from input:: " ++ cfUploadedImageResponse
-              Just strings -> Data.List.intercalate ", " strings
-
-        -- let output2 =  case output of 
-        --     Left erro -> erro
-        --     Right stringList -> condense stringList
-
-    
-        text $ pack cfUploadedImageResponse -- "{\n  \"result\": {\n    \"id\": \"e7908c58-425b-40a8-ce3d-578286a53100\",\n    \"filename\": \"bird2.jpg\",\n    \"uploaded\": \"2023-03-20T13:12:46.566Z\",\n    \"requireSignedURLs\": false,\n    \"variants\": [\n      \"https://imagedelivery.net/9U-0Y4sEzXlO6BXzTnQnYQ/e7908c58-425b-40a8-ce3d-578286a53100/public\"\n    ]\n  },\n  \"success\": true,\n  \"errors\": [],\n  \"messages\": []\n}"
-        -- text $ pack $ show output -- Left "Error in $: parsing CFUploadResponse failed, expected Object, but encountered String"
-
-        -- text $ pack $ show output-- cfUploadedImageResponse
-        -- let cfUploadedImageResponse' = eitherDecode $ BL.pack cfUploadedImageResponse :: Either String (Maybe CFUpload.CFUploadResponse)  -- (6)
+        cfUploadedImageResponse <- liftIO $ Image.uploadTheImage cfImageUploadUrl filename -- (5)         
+        case CFUpload.getVariantsP cfUploadedImageResponse of
+            Left errString -> text $ pack errString
+            Right goodString -> text $ pack (Data.List.intercalate ", " goodString)
 
 
     post "/pdf" $ do

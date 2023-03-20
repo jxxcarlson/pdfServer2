@@ -59,9 +59,7 @@ import Data.Text.Encoding (decodeUtf8)
 
 
 
-
-
-uploadTheImage :: String -> String -> IO (String)
+uploadTheImage :: String -> [Char] -> IO BL.ByteString
 uploadTheImage uploadUrl filename  = do
     manager <- newTlsManager
     request <- parseRequest uploadUrl
@@ -69,8 +67,7 @@ uploadTheImage uploadUrl filename  = do
     let requestFile = "cf-image/" ++ filename 
     request'' <- MultiPart.formDataBody [ MultiPart.partFileSource "file" requestFile] request'
     response <- httpLbs request'' manager
-    -- LBS.putStrLn $ responseBody response
-    return $  show $ responseBody response
+    return $ responseBody response
 
 
 
