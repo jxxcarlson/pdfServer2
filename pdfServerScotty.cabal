@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 2b7cb8cf45149527ba4f315637af0aaf96a356f4fe0445c0379e7fe39c650055
+-- hash: a0159a9bf1a0b398969091520e165c9168adf714eff50e74ab5712dd8dadff72
 
 name:           pdfServerScotty
 version:        0.1.0.0
@@ -27,6 +27,7 @@ source-repository head
 
 library
   exposed-modules:
+      AesonExperiments
       CFImage
       CFOnetimeUrl
       CFUpload
