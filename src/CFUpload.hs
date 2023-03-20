@@ -8,6 +8,7 @@ import Data.Aeson
 import Data.Aeson.Types
 import GHC.Generics
 import Data.Text
+import Data.List
 import qualified Data.ByteString.Lazy as LB (ByteString)
 
 import qualified Data.ByteString.Lazy.Char8 as BL
@@ -28,6 +29,13 @@ data CFUploadResult = CFUploadResult {
     variants          :: [String]
   } deriving  (Show)
 
+
+(.->) :: FromJSON a => Parser Object -> Text -> Parser a
+(.->) parser key = do
+  obj <- parser
+  obj .: key
+
+cfData :: Value
 cfData = object [
     "result" .= object  [ 
         "id" .= ("abc" :: String)
@@ -42,44 +50,6 @@ cfData = object [
    ]
 
 
-foo = object
-    [ "contact_info" .= object
-      [ "email" .= ("williamyaoh@gmail.com" :: String)
-      , "address" .= object
-        [ "state" .= ("OK" :: String)
-        , "zip_code" .= ("74008" :: String)
-        ]
-      ]
-   ]
-
-
-email = parseMaybe nested $ object
-    [ "contact_info" .=
-      object [ "email" .= ("williamyaoh@gmail.com" :: String) ]
-    ]  
-
-
-
-(.->) :: FromJSON a => Parser Object -> Text -> Parser a
-(.->) parser key = do
-  obj <- parser
-  obj .: key
-
-
---  GHCi > parseMaybe CFUpload.nested' foo
--- Just ("williamyaoh@gmail.com","OK")  
-nested' :: Value -> Parser (String, String)
-nested' = withObject "ContactInfo" $ \obj -> do
-   email <- obj .: "contact_info" .-> "email"
-   state <- obj .: "contact_info" .-> "address" .-> "state"
-   return (email, state)
-
--- { contact_info: { email: <string> } }
-nested :: Value -> Parser String
-nested = withObject "ContactInfo" $ \obj -> do
-  contact <- obj .: "contact_info"
-  contact .: "email"
-
 --  GHCi > parseMaybe variantsP cfData
 -- Just ["foobar@yada.io/bird.jpg"]
 variantsP :: Value -> Parser [String]
@@ -88,13 +58,42 @@ variantsP = withObject "CFUploadResponse" $ \obj -> do
     return variants
 
 
+testInput :: String
+testInput = "{\n  \"result\": {\n    \"id\": \"d637143d-5d4f-4f03-5238-f352c96e0800\",\n    \"filename\": \"bird2.jpg\",\n    \"uploaded\": \"2023-03-20T03:57:30.745Z\",\n    \"requireSignedURLs\": false,\n    \"variants\": [\n      \"https://imagedelivery.net/9U-0Y4sEzXlO6BXzTnQnYQ/d637143d-5d4f-4f03-5238-f352c96e0800/public\"\n    ]\n  },\n  \"success\": true,\n  \"errors\": [],\n  \"messages\": []\n}"
+
+--- hohoho = eitheDecode testInput
+
+--  GHCi > getVariantsP $ BL.pack testInput
+--  Right ["https://imagedelivery.net/9U-0Y4sEzXlO6BXzTnQnYQ/d637143d-5d4f-4f03-5238-f352c96e0800/public"]
+-- eitherDecode :: FromJSON a => BL.ByteString -> Either String a
+getVariantsP :: BL.ByteString -> Either String [String]
 getVariantsP input =
   case eitherDecode input of
-     Left _ ->  Nothing
-     Right value -> parseMaybe variantsP value
+     Left err ->  Left err
+     Right value -> parseEither variantsP value
 
 
-testInput = "{\n  \"result\": {\n    \"id\": \"d637143d-5d4f-4f03-5238-f352c96e0800\",\n    \"filename\": \"bird2.jpg\",\n    \"uploaded\": \"2023-03-20T03:57:30.745Z\",\n    \"requireSignedURLs\": false,\n    \"variants\": [\n      \"https://imagedelivery.net/9U-0Y4sEzXlO6BXzTnQnYQ/d637143d-5d4f-4f03-5238-f352c96e0800/public\"\n    ]\n  },\n  \"success\": true,\n  \"errors\": [],\n  \"messages\": []\n}"
+--  GHCi > getVariantsQ testInput
+--  Right "https://imagedelivery.net/9U-0Y4sEzXlO6BXzTnQnYQ/d637143d-5d4f-4f03-5238-f352c96e0800/public"
+--  GHCi > getVariantsQ (";lk;kj" ++ testInput ++ "L:KJ:LKJ")
+--  Left "Error in $: Failed reading: not a valid json value at ';lk;kj{'"
+getVariantsQ :: String -> Either String String
+getVariantsQ input =
+  case eitherDecode (BL.pack input) of
+     Left err ->  Left err
+     Right value -> Data.List.intercalate ", " <$> parseEither variantsP value
+
+
+
+
+-- getVariantsPP :: BL.ByteString -> Either String String
+-- getVariantsPP input =
+--   case eitherDecode input of
+--      Left err ->  Left err
+--      Right value ->  
+--        case parseEither variantsP value of
+--           Left err2 -> err2
+--           Right stuff -> Data.List.intercalate ", " stuff
 
 
 instance FromJSON CFUploadResponse where

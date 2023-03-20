@@ -90,3 +90,22 @@ nested' = withObject "ContactInfo" $ \obj -> do
    email <- obj .: "contact_info" .-> "email"
    state <- obj .: "contact_info" .-> "address" .-> "state"
    return (email, state)
+
+
+
+foo = object
+    [ "contact_info" .= object
+      [ "email" .= ("williamyaoh@gmail.com" :: String)
+      , "address" .= object
+        [ "state" .= ("OK" :: String)
+        , "zip_code" .= ("74008" :: String)
+        ]
+      ]
+   ]
+
+
+email2 = parseMaybe nested $ object
+    [ "contact_info" .=
+      object [ "email" .= ("williamyaoh@gmail.com" :: String) ]
+    ]  
+
