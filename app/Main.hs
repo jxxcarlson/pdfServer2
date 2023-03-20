@@ -6,9 +6,9 @@
 
 module Main where
 
+import Data.Text.Unsafe (inlinePerformIO)
 import Control.Monad.IO.Class (liftIO) -- liftIO :: IO a -> m a
-
-import Web.Scotty
+import Control.Monad
 import Network.HTTP.Types
 import Network.Wai.Middleware.Static ( (>->), addBase, noDots, staticPolicy )
 import Web.Scotty
@@ -16,20 +16,42 @@ import Network.Wai.Middleware.Cors
 import Network.Wai                       (Application, Middleware)
 import Network.Wai.Middleware.AddHeaders (addHeaders)
 import Network.Wai.Middleware.RequestLogger
+import Data.Aeson
+import Data.List
 import System.Process
 import Data.Text.Lazy (pack, unpack, replace, toLower, Text)
+
+
+import qualified Data.ByteString.Lazy.Char8 as BL
+import qualified Data.Text.Lazy.Encoding as TLE
+import qualified Data.List.Utils as U
+
+import Document (Document, writeTeXSourceFile, prepareData, docId)
+import qualified Image 
+import qualified CFImage       
+import qualified CFUpload (getVariantsP, CFUploadResponse)   
+import qualified CFOnetimeUrl  
 import Pdf
 import Tar
-import Document (Document, writeTeXSourceFile, prepareData, docId)
 
 main = scotty 3000 $ do
-
+ 
     middleware defaultMiddlewares
-    middleware logStdoutDev
+    middleware logStdoutDev 
+
+    post "/image" $ do
+        image <- jsonData :: ActionM CFImage.CFImage
+        let filename = CFImage.getFilenameFromImage image
+        liftIO $ CFImage.downloadImage image
+        cfImageUploadUrl <- liftIO Image.requestCFToken
+        cfUploadedImageResponse <- liftIO $ Image.uploadTheImage cfImageUploadUrl filename       
+        case CFUpload.getVariantsP cfUploadedImageResponse of
+            Left errString -> text $ pack errString
+            Right goodString -> text $ pack (Data.List.intercalate ", " goodString)
+
 
     post "/pdf" $ do
-        
-        document <- jsonData :: ActionM Document 
+        document <- jsonData :: ActionM Document
         liftIO $ Document.prepareData document
         liftIO $ Pdf.create document
         text  (textReplace ".tex" ".pdf" (Data.Text.Lazy.toLower (Document.docId document)))
@@ -47,17 +69,15 @@ main = scotty 3000 $ do
 
     get "/tar/:id" $ do
         docId <- param "id"
-        file ("outbox/" ++ (unpack docId) )
+        file ("outbox/" ++ unpack docId )
 
     get "/hello" $ do
         html $ mconcat ["Yes, I am still here\n"]
-
 
     post "/hello" $ do
        text "Yes, I am still here\n"
 
     middleware $ staticPolicy (noDots >-> addBase "outbox")
-
 
 textReplace :: String -> String -> Text -> Text
 textReplace src target text = 
@@ -90,3 +110,7 @@ appCorsResourcePolicy = CorsResourcePolicy
   , corsRequireOrigin  = False
   , corsIgnoreFailures = False
   }
+
+-- | Convert BL.ByteString to Text
+blToText :: BL.ByteString -> Text
+blToText = TLE.decodeUtf8
