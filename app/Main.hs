@@ -42,7 +42,7 @@ main = scotty 3000 $ do
     post "/image" $ do
         image <- jsonData :: ActionM CFImage.CFImage
         let filename = CFImage.getFilenameFromImage image
-        -- liftIO $ CFImage.downloadImage image
+        liftIO $ CFImage.downloadImage image
         -- cfImageUploadUrl <- liftIO Image.requestCFToken
         -- cfUploadedImageResponse <- liftIO $ Image.uploadTheImage cfImageUploadUrl filename       
         -- case CFUpload.getVariantsP cfUploadedImageResponse of

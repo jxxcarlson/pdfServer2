@@ -9,6 +9,7 @@ import GHC.Generics
 import GHC.IO.Exception
 import System.Environment (getEnv)
 import System.Process
+import Control.Monad
 
 data CFImage = CFImage
       {
@@ -21,14 +22,14 @@ data CFImage = CFImage
 downloadImage :: CFImage -> IO()
 downloadImage cfImage =
     do
-     downloadCFImage cfImage >> return () -- write the image file to ./cf-image
+     Control.Monad.void (downloadCFImage cfImage) -- write the image file to ./cf-image
 
 
 downloadCFImage :: CFImage -> IO (GHC.IO.Exception.ExitCode)
 downloadCFImage image =
    system ("wget -O " ++ "cf-image/" ++ imageFilename image ++ " " ++  url image)
 
-
+-- wget -O cf-image/foo.jpg https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Eopsaltria_australis_-_Mogo_Campground.jpg/640px-Eopsaltria_australis_-_Mogo_Campground.jpg
 
 -- DECODERS
 
@@ -49,7 +50,7 @@ getUrlFromImage :: CFImage -> String
 getUrlFromImage (CFImage url _ _ ) = url
 
 updateCFImage :: String -> CFImage -> CFImage
-updateCFImage newUrl cfImage = 
+updateCFImage newUrl cfImage =
      cfImage { url = newUrl }
 
 
