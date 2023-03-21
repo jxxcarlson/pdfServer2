@@ -40,11 +40,13 @@ tar archive.
 
 Test if the server is up with `http://localhost:3000/hello`
 
+Do not use `https` on localhost!!
+
 
 ## Operation of the server
 
 The server is installed as `http://pdfServ.app` at
-my DigitalOcean "rose" box.
+my DigitalOcean "rose" box in `./pdfServer`
 
 **To update the server:**
 

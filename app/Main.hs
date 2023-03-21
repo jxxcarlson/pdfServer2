@@ -7,7 +7,6 @@
 module Main where
 
 import Control.Monad.IO.Class (liftIO) -- liftIO :: IO a -> m a
-
 import Web.Scotty
 import Network.HTTP.Types
 import Network.Wai.Middleware.Static ( (>->), addBase, noDots, staticPolicy )
@@ -16,19 +15,35 @@ import Network.Wai.Middleware.Cors
 import Network.Wai                       (Application, Middleware)
 import Network.Wai.Middleware.AddHeaders (addHeaders)
 import Network.Wai.Middleware.RequestLogger
+import Data.Aeson (encode)
 import System.Process
 import Data.Text.Lazy (pack, unpack, replace, toLower, Text)
 import Pdf
 import Tar
 import Document (Document, writeTeXSourceFile, prepareData, docId)
+import Image (CFImage,prepareCFImage,requestCFToken, updateCFImage, uploadTheImage, getFilenameFromImage)
+import qualified Data.ByteString.Lazy.Char8 as BL
+import qualified Data.Text.Lazy.Encoding as TLE
+import qualified Data.List.Utils as U
 
 main = scotty 3000 $ do
-
+ 
     middleware defaultMiddlewares
-    middleware logStdoutDev
+    middleware logStdoutDev 
+
+    post "/image" $ do
+        image <- jsonData :: ActionM CFImage
+        liftIO $ prepareCFImage image
+        cfImageUploadUrl <- liftIO $ requestCFToken
+        let cfImageUploadUrl' = U.replace "\"" "" cfImageUploadUrl
+        let filename = getFilenameFromImage image
+        -- OK TO HERE: 
+        -- text $ pack cfImageUploadUrl'
+        cfUploadedImageResponse <- liftIO $ uploadTheImage cfImageUploadUrl' filename
+        -- text $ blToText $ encode updatedImage 
+        text $ pack cfUploadedImageResponse
 
     post "/pdf" $ do
-        
         document <- jsonData :: ActionM Document
         liftIO $ Document.prepareData document
         liftIO $ Pdf.create document
@@ -51,7 +66,6 @@ main = scotty 3000 $ do
 
     get "/hello" $ do
         html $ mconcat ["Yes, I am still here\n"]
-
 
     post "/hello" $ do
        text "Yes, I am still here\n"
@@ -92,3 +106,7 @@ appCorsResourcePolicy = CorsResourcePolicy
   , corsRequireOrigin  = False
   , corsIgnoreFailures = False
   }
+
+-- | Convert BL.ByteString to Text
+blToText :: BL.ByteString -> Text
+blToText = TLE.decodeUtf8
