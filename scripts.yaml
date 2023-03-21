@@ -1,5 +1,12 @@
 scripts:
-  
+
+
+  update-pdfserver:
+    - stack build
+    - stack ghc app/Main.hs
+    - mv app/Main ./pdfServer
+    - echo "Reboot to run the new server"
+
   exec: stack exec pdfServerScotty-exe
 
   start-nh: nohup ./pdfServer &
