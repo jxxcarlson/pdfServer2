@@ -48,4 +48,8 @@ scripts:
 
   cloc:  cloc --by-file src app
 
+  # /Users/jxxcarlson/Library/Caches/com.github.rikvdkleij.intellij-haskell
+  #   hoogle-intellij: /home/jxxcarlson/.cache/intellij-haskell/lts-16.31/bin/hoogle generate --database=/home/jxxcarlson/.cache/intellij-haskell/ProgramaTutorial/hoogle
+  hoogle-intellij: /home/jxxcarlson/.cache/intellij-haskell/lts-16.31/bin/hoogle generate --database=/home/jxxcarlson/.cache/intellij-haskell/ProgramaTutorial/hoogle
+
 

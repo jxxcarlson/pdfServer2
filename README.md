@@ -28,17 +28,25 @@ as id.
 ## Tar Archives
 
 POST requests to /tar/ with the same payload as to /pdf/
-will generate a tar archive with contenta the LaTeX document
+will generate a tar archive with contents the LaTeX document
 and a subfolder "image" with a copy of each of the
 image files found in the document. After processing,
-GET reqeusts to /tar/:id will return a copy of the 
+GET requests to /tar/:id will return a copy of the 
 tar archive.  
+
+## Local operation
+
+- `stack run`
+
+Test if the server is up with `http://localhost:3000/hello`
+
+Do not use `https` on localhost!!
 
 
 ## Operation of the server
 
 The server is installed as `http://pdfServ.app` at
-my DigitalOcean "rose" box.
+my DigitalOcean "rose" box in `./pdfServer`
 
 **To update the server:**
 
@@ -51,3 +59,7 @@ my DigitalOcean "rose" box.
  
 - `stack install MissingH` is needed
 - `hoogle`
+
+
+This is a test.
+

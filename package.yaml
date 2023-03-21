@@ -34,7 +34,12 @@ dependencies:
 - scotty
 - wai-middleware-static
 - http-types
-- containers
+- http-client
+- http-client-tls
+- bytestring
+- filepath
+
+
 
 
 library:
