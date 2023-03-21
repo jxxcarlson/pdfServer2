@@ -61,14 +61,15 @@ requestCFToken = do
             ]
             }
     response <- httpLbs request manager 
-    let responseBody' =  BL.unpack $ responseBody response
-    let cfOnetimeUrlResponse = (Data.Aeson.eitherDecode (responseBody response)  :: Either String (Maybe CFOnetimeUrl.CFOnetimeUrl))
-    case cfOnetimeUrlResponse of 
-      Left err -> return  err
-      Right stuff -> 
-        case stuff of
-          Nothing -> return "Werid! got Nothing when I shouldn't have"
-          Just realStuff -> return (CFOnetimeUrl.uploadURLFromResponse realStuff)
+    -- let responseBody' =  BL.unpack $ responseBody response
+    -- let cfOnetimeUrlResponse = (Data.Aeson.eitherDecode (responseBody response)  :: Either String (Maybe CFOnetimeUrl.CFOnetimeUrl))
+    -- case cfOnetimeUrlResponse of 
+    --   Left err -> return  err
+    --   Right stuff -> 
+    --     case stuff of
+    --       Nothing -> return "Werid! got Nothing when I shouldn't have"
+    --       Just realStuff -> return (CFOnetimeUrl.uploadURLFromResponse realStuff)
+    return "This was a test (requestCFToken)"
 
 
 byteStringToText byteString = TL.unpack $ TLE.decodeUtf8 byteString
