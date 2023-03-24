@@ -64,5 +64,31 @@ my DigitalOcean "rose" box in `./pdfServer`
 This is a test.
 
 
+<<<<<<< HEAD
 
 Testing ...
+=======
+## Commands
+
+- netstat: list open ports
+
+```
+root@rose:~/pdfServer# netstat -lntu
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State
+tcp        0      0 0.0.0.0:80              0.0.0.0:*               LISTEN
+tcp        0      0 127.0.0.53:53           0.0.0.0:*               LISTEN
+tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN
+tcp        0      0 127.0.0.1:5432          0.0.0.0:*               LISTEN
+tcp        0      0 0.0.0.0:3000            0.0.0.0:*               LISTEN
+tcp        0      0 0.0.0.0:443             0.0.0.0:*               LISTEN
+tcp6       0      0 :::22                   :::*                    LISTEN
+udp        0      0 127.0.0.53:53           0.0.0.0:*
+```
+
+https://www.digitalocean.com/community/tutorials/opening-a-port-on-linux
+
+  526  snap connect nmap:network-control
+  527  nmap localhost -p 3001
+  528  sudo ufw status | grep 300
+>>>>>>> 10daae68e51849407a25847aaf8b1da819806bdf
