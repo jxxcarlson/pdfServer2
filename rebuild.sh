@@ -17,8 +17,9 @@ white()   { tput setaf 7; }
 RETURN=`pwd`
 
 echo "---> $(blue)Rebuilding imageServer...$(normal)"
-cd ~/lamdera/imageServer
-istack install lamdera-imageServer:exe:imageServer
+stack build
+stack ghc app/Main.hs
+mv app/Main imageServer
 
 echo "---> $(red)Killing old versions of 'imageServer'$(normal)"
 (pgrep -fl "imageServer" || true)
