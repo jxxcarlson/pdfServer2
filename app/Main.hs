@@ -34,7 +34,7 @@ import qualified CFOnetimeUrl
 import Pdf
 import Tar
 
-main = scotty 3000 $ do
+main = scotty 3001 $ do
  
     middleware defaultMiddlewares
     middleware logStdoutDev 

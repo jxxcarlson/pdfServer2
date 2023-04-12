@@ -9,3 +9,6 @@ cf-image/*
 refrigerator/
 app/freezer/
 pdfServer
+imageServer
+wget-log
+screenlog.0
