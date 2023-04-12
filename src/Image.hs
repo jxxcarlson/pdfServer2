@@ -44,6 +44,8 @@ uploadTheImage uploadUrl filename  = do
     let requestFile = "cf-image/" ++ filename 
     request'' <- MultiPart.formDataBody [ MultiPart.partFileSource "file" requestFile] request'
     response <- httpLbs request'' manager
+    let cmd = "rm " ++ requestFile
+    system cmd >>= \exitCode -> print exitCode
     return $ responseBody response
 
 
