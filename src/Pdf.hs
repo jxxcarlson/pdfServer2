@@ -5,7 +5,7 @@
 module Pdf (create, createWithErrorPdf, PdfResult(..)) where
 
 import Data.Text.Lazy (Text, unpack, pack)
-import System.Process
+import System.Process (system, readProcess)
 import qualified Data.String.Utils as SU
 import Text.RawString.QQ
 import Data.List.Utils (replace)
@@ -18,6 +18,7 @@ import System.IO (readFile)
 import Control.Exception (catch)
 import System.IO.Error (IOError)
 import Control.Applicative ((<$>))
+import System.Directory (doesFileExist, getFileSize)
 
 data PdfResult = PdfSuccess { filename :: Text }
                | PdfError { error :: Text, errorLog :: Text }
@@ -41,18 +42,38 @@ create document =
         putStrLn $ "create: Processing document: " ++ fileName
         exitCode <- createPdf_ fileName
         putStrLn $ "create: XeLaTeX exit code: " ++ show exitCode
-        case exitCode of
-            ExitSuccess -> do
+        
+        -- Check if PDF was actually created, regardless of exit code
+        let outputPdfPath = "outbox/" ++ pdfFileName
+        pdfExists <- doesFileExist outputPdfPath
+        
+        if pdfExists then do
+            -- Check if the PDF is valid (not too small)
+            fileSize <- getFileSize outputPdfPath
+            
+            -- If PDF is too small (less than 1KB), treat it as invalid
+            if fileSize > 1000 then do
+                -- PDF was created successfully and seems valid
+                putStrLn $ "create: PDF created successfully at " ++ outputPdfPath ++ " (size: " ++ show fileSize ++ " bytes)"
                 system removeInputs >>= \_ -> return ()
                 system removeOuputJunk >>= \_ -> return ()
                 system removeOldOutboxFiles >>= \_ -> return ()
                 return $ PdfSuccess (pack pdfFileName)
-            ExitFailure code -> do
+            else do
+                -- PDF is too small, likely corrupted
+                putStrLn $ "create: PDF is too small (" ++ show fileSize ++ " bytes), treating as error"
                 logContent <- readLogFile logFileName
                 system removeInputs >>= \_ -> return ()
-                -- Keep log files for failed compilations
                 system removeOldOutboxFiles >>= \_ -> return ()
-                return $ PdfError (pack $ "LaTeX compilation failed with exit code: " ++ show code) (pack logContent)
+                return $ PdfError (pack "PDF generation produced invalid output") (pack logContent)
+        else do
+            -- No PDF was created - this is a real error
+            putStrLn $ "create: PDF creation failed - no output file"
+            logContent <- readLogFile logFileName
+            system removeInputs >>= \_ -> return ()
+            -- Keep log files for failed compilations
+            system removeOldOutboxFiles >>= \_ -> return ()
+            return $ PdfError (pack $ "LaTeX compilation failed - no PDF generated") (pack logContent)
 
 -- Create PDF, but on error create a PDF of the error log
 createWithErrorPdf :: Document -> IO Text
