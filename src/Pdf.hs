@@ -9,6 +9,7 @@ import System.Process
 import qualified Data.String.Utils as SU
 import Text.RawString.QQ
 import Data.List.Utils (replace)
+import Data.List (isInfixOf)
 import Document (Document, docId)
 import GHC.Generics
 import Data.Aeson
@@ -98,18 +99,37 @@ createWithErrorPdf document = do
                     let fileName = unpack $ Document.docId document
                         pdfFileName = replace ".tex" ".pdf" fileName
                         errorTexFileName = "inbox/error-" ++ fileName
-                        -- Create a LaTeX document containing the error log
-                        -- Escape backslashes in verbatim content to prevent LaTeX issues
-                        escapedLog = unpack logContent
+                        -- For the error log, we'll truncate to first 100 lines to avoid issues
+                        logLines = take 100 $ lines (unpack logContent)
+                        truncatedLog = unlines logLines
+                        -- Look for specific errors in the log
+                        hasImageError = any (\line -> "Unable to load picture" `isInfixOf` line || "image" `isInfixOf` line) logLines
+                        hasBraceError = any (\line -> "Paragraph ended before" `isInfixOf` line || "Too many }" `isInfixOf` line) logLines
+                        hasDivisionError = any (\line -> "Division by 0" `isInfixOf` line) logLines
+                        -- Create specific error messages based on what we found
+                        specificErrors = if hasImageError then
+                                           "\\item \\textbf{Missing Image:} The document references an image that could not be loaded. Check that all image URLs are accessible.\n"
+                                         else "" ++
+                                         if hasBraceError then
+                                           "\\item \\textbf{Unmatched Braces:} The document has mismatched \\{ \\} braces. Check your author field and other commands.\n"
+                                         else "" ++
+                                         if hasDivisionError then
+                                           "\\item \\textbf{Division by Zero:} An image dimension calculation resulted in division by zero. This often happens with corrupted images.\n"
+                                         else ""
                         errorTexContent = "\\documentclass{article}\n" ++
                                           "\\usepackage{geometry}\n" ++
                                           "\\geometry{letterpaper, margin=1in}\n" ++
                                           "\\usepackage{fancyvrb}\n" ++
                                           "\\begin{document}\n" ++
                                           "\\title{LaTeX Compilation Error}\n" ++
+                                          "\\date{\\today}\n" ++
                                           "\\maketitle\n" ++
                                           "\\section{Error Summary}\n" ++
-                                          (unpack errMsg) ++ "\n\n" ++
+                                          "Failed to process document. The LaTeX compilation encountered errors.\n\n" ++
+                                          "\\section{Specific Issues Found}\n" ++
+                                          "\\begin{itemize}\n" ++
+                                          specificErrors ++
+                                          "\\end{itemize}\n\n" ++
                                           "\\section{Common Causes}\n" ++
                                           "\\begin{itemize}\n" ++
                                           "\\item Missing or misspelled LaTeX commands\n" ++
@@ -118,23 +138,29 @@ createWithErrorPdf document = do
                                           "\\item Invalid image references\n" ++
                                           "\\item Special characters that need escaping\n" ++
                                           "\\end{itemize}\n\n" ++
-                                          "\\section{Full Error Log}\n" ++
-                                          "\\begin{Verbatim}[breaklines=true,breaksymbolleft={}]\n" ++
-                                          escapedLog ++ "\n" ++
+                                          "\\section{Error Log (First 100 lines)}\n" ++
+                                          "\\begin{Verbatim}[fontsize=\\footnotesize,breaklines=true,breaksymbolleft={}]\n" ++
+                                          truncatedLog ++ "\n" ++
                                           "\\end{Verbatim}\n" ++
                                           "\\end{document}"
                     -- Write the error TeX file
+                    putStrLn $ "createWithErrorPdf: Writing error tex file: " ++ errorTexFileName
                     writeFile errorTexFileName errorTexContent
-                    -- Compile it to PDF
-                    (exitCode, stdout, stderr) <- readProcessWithExitCode "xelatex" 
-                        ["-output-directory=outbox", "-interaction=nonstopmode", errorTexFileName] ""
+                    -- Compile it to PDF using system to avoid encoding issues
+                    putStrLn "createWithErrorPdf: Compiling error PDF..."
+                    exitCode <- system $ "xelatex -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1"
+                    putStrLn $ "createWithErrorPdf: XeLaTeX exit code for error PDF: " ++ show exitCode
+                    -- Clean up the tex file regardless of success
+                    system ("rm -f " ++ errorTexFileName ++ " 2>/dev/null") >>= \_ -> return ()
                     case exitCode of
                         ExitSuccess -> do
-                            -- Clean up
-                            system ("rm " ++ errorTexFileName) >>= \_ -> return ()
-                            -- Return the PDF filename
+                            putStrLn "createWithErrorPdf: Error PDF created successfully"
+                            -- Copy the error PDF to the expected filename
+                            let errorPdfFileName = replace ".tex" ".pdf" ("error-" ++ fileName)
+                            system $ "cp outbox/" ++ errorPdfFileName ++ " outbox/" ++ pdfFileName ++ " 2>/dev/null"
                             return (pack pdfFileName)
                         ExitFailure _ -> do
+                            putStrLn "createWithErrorPdf: Error PDF compilation failed, creating fallback"
                             -- If error PDF fails, create a simple text file as PDF
                             let fallbackContent = "\\documentclass{article}\n" ++
                                                 "\\usepackage{geometry}\n" ++
@@ -163,10 +189,27 @@ createWithErrorPdf document = do
                                                 "If the problem persists, please contact support with your document.\n" ++
                                                 "\\end{document}"
                             writeFile errorTexFileName fallbackContent
-                            (exitCode2, _, _) <- readProcessWithExitCode "xelatex"
-                                ["-output-directory=outbox", "-interaction=nonstopmode", errorTexFileName] ""
-                            system ("rm " ++ errorTexFileName) >>= \_ -> return ()
-                            return (pack pdfFileName)
+                            putStrLn "createWithErrorPdf: Compiling fallback PDF..."
+                            exitCode2 <- system $ "xelatex -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1"
+                            system ("rm -f " ++ errorTexFileName ++ " 2>/dev/null") >>= \_ -> return ()
+                            putStrLn $ "createWithErrorPdf: Fallback compilation exit code: " ++ show exitCode2
+                            -- Even if fallback fails, we need to return something
+                            -- Create a minimal PDF using pdflatex which is more robust
+                            if exitCode2 /= ExitSuccess then do
+                                let minimalTexFileName = "inbox/minimal-" ++ fileName
+                                    minimalContent = "\\documentclass{article}\n\\begin{document}\nError: Failed to process document\n\\end{document}"
+                                writeFile minimalTexFileName minimalContent
+                                system $ "pdflatex -output-directory=outbox -interaction=nonstopmode " ++ minimalTexFileName ++ " >/dev/null 2>&1"
+                                system ("rm -f " ++ minimalTexFileName ++ " 2>/dev/null") >>= \_ -> return ()
+                                -- Copy the minimal PDF to the expected filename
+                                let minimalPdfFileName = replace ".tex" ".pdf" ("minimal-" ++ fileName)
+                                system $ "cp outbox/" ++ minimalPdfFileName ++ " outbox/" ++ pdfFileName ++ " 2>/dev/null"
+                                return (pack pdfFileName)
+                            else do
+                                -- Copy the error PDF to the expected filename  
+                                let errorPdfFileName = replace ".tex" ".pdf" ("error-" ++ fileName)
+                                system $ "cp outbox/" ++ errorPdfFileName ++ " outbox/" ++ pdfFileName ++ " 2>/dev/null"
+                                return (pack pdfFileName)
 
 createPdf_ :: String -> IO ExitCode
 createPdf_ fileName =
