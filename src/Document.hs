@@ -8,7 +8,9 @@ import Control.Applicative
 import System.Process
 import Data.List.Split
 import Data.List.Utils (replace)
+import Data.List (isInfixOf)
 import GHC.IO.Exception
+import System.Directory (getCurrentDirectory)
 
 -- Define the Article constructor
 -- e.g. Article 12 "some title" "some body text"
@@ -73,22 +75,29 @@ packagePaths doc =
 fixGraphicsPath = replace "\\graphicspath{ {image/} }" "\\graphicspath{{inbox/tmp/image/}}"
 
 writeTeXSourceFile :: Document -> IO()
-writeTeXSourceFile doc = 
-  let
-    texFilename = "inbox/" ++ (unpack $ docId doc) 
-    contents = unpack $ content doc
-  in
-    writeFile texFilename contents
+writeTeXSourceFile doc = do
+    pwd <- getCurrentDirectory
+    let texFilename = "inbox/" ++ (unpack $ docId doc) 
+        contents = unpack $ content doc
+        -- Add graphics path after documentclass if graphicx is used
+        -- Use absolute path to ensure images are found
+        contentsWithPath = if "\\usepackage{graphicx}" `isInfixOf` contents
+                           then replace "\\usepackage{graphicx}" ("\\usepackage{graphicx}\n\\graphicspath{{" ++ pwd ++ "/image/}}") contents
+                           else contents
+    writeFile texFilename contentsWithPath
 
 
 downloadImage :: ImageElement -> IO (GHC.IO.Exception.ExitCode)
 downloadImage element =
-   system ("wget -O " ++ "image/" ++ (filename element) ++ " " ++  (url element))
+   system ("curl -s -o " ++ "image/" ++ (filename element) ++ " \"" ++  (url element) ++ "\"")
 
 prepareData :: Document -> IO()
 prepareData doc =
   let
-      preparePackages = "cp " ++ (packagePaths doc) ++ " inbox/"
+      paths = packagePaths doc
+      preparePackages = if null paths 
+                        then "true"  -- no-op command when no packages
+                        else "cp " ++ paths ++ " inbox/"
   in
     do
       mapM_ downloadImage (urlList doc) -- write the image files to ./image

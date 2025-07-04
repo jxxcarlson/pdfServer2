@@ -138,9 +138,9 @@ downloadCFImage image =
 -- Tell Aeson how to create a CFImage object from JSON string.
 instance FromJSON CFImage where
      parseJSON (Object v) = CFImage <$>
-                            v .:  (Data.Text.pack "url") <*> 
-                            v .:  (Data.Text.pack "filename") <*>
-                            v .:  (Data.Text.pack "username") 
+                            v .: "url" <*> 
+                            v .: "filename" <*>
+                            v .: "username" 
                            
  
 

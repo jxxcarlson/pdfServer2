@@ -18,7 +18,7 @@ import Network.Wai.Middleware.RequestLogger
 import Data.Aeson (encode)
 import System.Process
 import Data.Text.Lazy (pack, unpack, replace, toLower, Text)
-import Pdf
+import Pdf (create, createWithErrorPdf, PdfResult(..))
 import Tar
 import Document (Document, writeTeXSourceFile, prepareData, docId)
 import Image (CFImage,prepareCFImage,requestCFToken, updateCFImage, uploadTheImage, getFilenameFromImage)
@@ -43,11 +43,23 @@ main = scotty 3000 $ do
         -- text $ blToText $ encode updatedImage 
         text $ pack cfUploadedImageResponse
 
+    post "/json" $ do
+        document <- jsonData :: ActionM Document
+        liftIO $ Document.prepareData document
+        result <- liftIO $ Pdf.create document
+        case result of
+            PdfSuccess fname -> do
+                status status200
+                json result
+            PdfError _ _ -> do
+                status status400
+                json result
+
     post "/pdf" $ do
         document <- jsonData :: ActionM Document
         liftIO $ Document.prepareData document
-        liftIO $ Pdf.create document
-        text  (textReplace ".tex" ".pdf" (Data.Text.Lazy.toLower (Document.docId document)))
+        pdfFileName <- liftIO $ Pdf.createWithErrorPdf document
+        text pdfFileName
 
     post "/tar" $ do
         document <- jsonData :: ActionM Document 
