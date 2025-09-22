@@ -18,9 +18,9 @@ import Network.Wai.Middleware.RequestLogger
 import Data.Aeson (encode)
 import System.Process
 import Data.Text.Lazy (pack, unpack, replace, toLower, Text)
-import Pdf (create, createWithErrorPdf, PdfResult(..))
+import Pdf (create, createWithErrorPdf, createWithFailedImages, createWithFilteredErrors, PdfResult(..))
 import Tar
-import Document (Document, writeTeXSourceFile, prepareData, docId)
+import Document (Document, prepareData, docId)
 import Image (CFImage,prepareCFImage,requestCFToken, updateCFImage, uploadTheImage, getFilenameFromImage)
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Text.Lazy.Encoding as TLE
@@ -45,7 +45,7 @@ main = scotty 3000 $ do
 
     post "/json" $ do
         document <- jsonData :: ActionM Document
-        liftIO $ Document.prepareData document
+        failedImages <- liftIO $ Document.prepareData document
         result <- liftIO $ Pdf.create document
         case result of
             PdfSuccess fname -> do
@@ -57,13 +57,14 @@ main = scotty 3000 $ do
 
     post "/pdf" $ do
         document <- jsonData :: ActionM Document
-        liftIO $ Document.prepareData document
-        pdfFileName <- liftIO $ Pdf.createWithErrorPdf document
+        failedImages <- liftIO $ Document.prepareData document
+        -- Use the filtered error version for cleaner error reports
+        pdfFileName <- liftIO $ Pdf.createWithFilteredErrors document failedImages
         text pdfFileName
 
     post "/tar" $ do
-        document <- jsonData :: ActionM Document 
-        liftIO $ Document.prepareData document
+        document <- jsonData :: ActionM Document
+        failedImages <- liftIO $ Document.prepareData document
         liftIO $ Tar.create document
         text (Document.docId document)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 
