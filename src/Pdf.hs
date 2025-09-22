@@ -22,11 +22,14 @@ import System.Directory (doesFileExist, getFileSize)
 
 data PdfResult = PdfSuccess { filename :: Text }
                | PdfError { error :: Text, errorLog :: Text }
+               | PdfWithErrors { pdfFile :: Text, errorPdfFile :: Text, errorMsg :: Text }
                deriving (Show, Generic)
 
 instance ToJSON PdfResult where
     toJSON (PdfSuccess fname) = object ["success" .= True, "filename" .= fname]
     toJSON (PdfError err log) = object ["success" .= False, "error" .= err, "log" .= log]
+    toJSON (PdfWithErrors pdf errorPdf msg) = object
+        ["success" .= False, "pdfFile" .= pdf, "errorPdfFile" .= errorPdf, "error" .= msg]
 
 create :: Document -> IO PdfResult
 create document =
@@ -37,6 +40,7 @@ create document =
         removeOldOutboxFiles = "find outbox -type f -mtime +1 -delete 2>/dev/null || true"
         pdfFileName = replace ".tex" ".pdf" fileName
         logFileName = "outbox/" ++ replace ".tex" ".log" fileName
+        allImages = urlList document  -- Get all images for URL mapping
     in
     do
         putStrLn $ "create: Processing document: " ++ fileName
@@ -87,19 +91,31 @@ create document =
                             system removeOldOutboxFiles >>= \_ -> return ()
                             return $ PdfError (pack $ "LaTeX compilation failed - no PDF generated") (pack logContent)
                     ExitFailure _ -> do
-                        -- Non-zero exit code means errors occurred, even if a PDF was created
-                        -- The PDF is likely damaged or incomplete
+                        -- Non-zero exit code means errors occurred
+                        -- Check if a PDF was created (even if damaged)
                         putStrLn $ "create: XeLaTeX reported errors (exit code: " ++ show exitCode ++ ")"
+
+                        logContent <- readLogFile logFileName
+
                         if pdfExists then do
                             fileSize <- getFileSize outputPdfPath
                             putStrLn $ "create: PDF file exists but may be damaged (size: " ++ show fileSize ++ " bytes)"
-                        else
-                            putStrLn $ "create: No PDF file was created"
 
-                        logContent <- readLogFile logFileName
-                        system removeInputs >>= \_ -> return ()
-                        system removeOldOutboxFiles >>= \_ -> return ()
-                        return $ PdfError (pack "LaTeX compilation failed with errors") (pack logContent)
+                            -- Generate an error report PDF alongside the damaged PDF
+                            let errorPdfFileName = replace ".pdf" "-errors.pdf" pdfFileName
+                            generateErrorReportPdf fileName errorPdfFileName logContent allImages
+
+                            system removeInputs >>= \_ -> return ()
+                            system removeOldOutboxFiles >>= \_ -> return ()
+
+                            -- Return both the (possibly damaged) PDF and the error report PDF
+                            return $ PdfWithErrors (pack pdfFileName) (pack errorPdfFileName)
+                                (pack "LaTeX compilation had errors - PDF may be incomplete")
+                        else do
+                            putStrLn $ "create: No PDF file was created"
+                            system removeInputs >>= \_ -> return ()
+                            system removeOldOutboxFiles >>= \_ -> return ()
+                            return $ PdfError (pack "LaTeX compilation failed - no PDF generated") (pack logContent)
 
 -- Create PDF with failed images info
 createWithFailedImages :: Document -> [ImageElement] -> IO Text
@@ -319,6 +335,42 @@ createPdf_ fileName =
 
 -- HELPERS
 
+-- Generate a standalone error report PDF
+generateErrorReportPdf :: String -> String -> String -> [ImageElement] -> IO ()
+generateErrorReportPdf originalFileName errorPdfFileName logContent failedImages = do
+    let errorTexFileName = "inbox/" ++ replace ".pdf" ".tex" errorPdfFileName
+        filteredLog = filterLatexLogWithUrls logContent failedImages
+        errorTexContent = "\\documentclass{article}\n" ++
+                         "\\usepackage{geometry}\n" ++
+                         "\\geometry{letterpaper, margin=1in}\n" ++
+                         "\\begin{document}\n" ++
+                         "\\title{LaTeX Compilation Error Report}\n" ++
+                         "\\date{\\today}\n" ++
+                         "\\maketitle\n" ++
+                         "\\section{Summary}\n" ++
+                         "LaTeX compilation completed with errors. The PDF was generated but may be incomplete or have issues.\n\n" ++
+                         "\\section{Original Document}\n" ++
+                         "\\texttt{" ++ originalFileName ++ "}\n\n" ++
+                         (if not (null failedImages) then
+                            "\\section{Failed Image Downloads}\n" ++
+                            "\\begin{itemize}\n" ++
+                            concatMap (\img -> "\\item \\textbf{" ++ Document.filename img ++ "}: " ++
+                                             escapeLatex (Document.url img) ++ "\n") failedImages ++
+                            "\\end{itemize}\n\n"
+                          else "") ++
+                         "\\section{Error Log (Filtered)}\n" ++
+                         "{\\small\n" ++
+                         "\\begin{verbatim}\n" ++
+                         filteredLog ++ "\n" ++
+                         "\\end{verbatim}\n" ++
+                         "}\n" ++
+                         "\\end{document}"
+    -- Write and compile the error report
+    writeFile errorTexFileName errorTexContent
+    system $ "xelatex -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1"
+    system $ "rm -f " ++ errorTexFileName ++ " 2>/dev/null"
+    return ()
+
 readLogFile :: String -> IO String
 readLogFile logPath = do
     result <- try (readFile logPath) :: IO (Either IOError String)
@@ -358,6 +410,37 @@ findFailedImagesInLog logLines allFailedImages =
 filterLatexLogWithUrls :: String -> [ImageElement] -> String
 filterLatexLogWithUrls logContent failedImages =
     let logLines = lines logContent
+        -- Filter out font loading lines and other boilerplate
+        isBoilerplateLine line = any (`isInfixOf` line)
+            [ "LaTeX Font Info:"
+            , "Font shape"
+            , "(/usr/local/texlive"
+            , "/texmf-dist/fonts/"
+            , "size <"
+            , "external font"
+            , "Font Info:"
+            , ".fd"
+            , ".tfm"
+            , ".pfb"
+            , ".otf"
+            , ".ttf"
+            , "umsa.fd"
+            , "umsb.fd"
+            , "Trying to load font"
+            , "LaTeX2e <"
+            , "Document Class:"
+            , "Package:"
+            , "File:"
+            , "Loading"
+            , "(Font)"
+            , "Redeclaring"
+            , "For additional information"
+            , "ABD:"
+            , "Using"
+            , "Overwriting"
+            , "********"
+            ]
+        cleanedLines = filter (not . isBoilerplateLine) logLines
         -- Patterns that indicate actual errors or important messages
         isErrorLine line = any (`isInfixOf` line)
             [ "! LaTeX Error:"
@@ -409,7 +492,8 @@ filterLatexLogWithUrls logContent failedImages =
         takeContext _ [] = []
         takeContext n (x:xs) = annotateImageError x : takeContext (n-1) xs
 
-        filteredLines = extractErrors logLines
+        -- Apply filtering to cleaned lines
+        filteredLines = extractErrors cleanedLines
     in if null filteredLines
        then "No specific errors found in log. Check full log for details."
        else unlines filteredLines
@@ -458,6 +542,11 @@ createWithFilteredErrors document failedImages = do
             putStrLn $ "createWithFilteredErrors: Got result: " ++ show result
             case result of
                 PdfSuccess fname -> return fname
+                PdfWithErrors pdfFile errorPdfFile errMsg -> do
+                    -- When we have both files, return the error PDF filename
+                    -- The client can choose which one to display
+                    putStrLn $ "createWithFilteredErrors: Both PDF and error report available"
+                    return errorPdfFile
                 PdfError errMsg logContent -> do
                     putStrLn "createWithFilteredErrors: Handling error case..."
                     let fileName = unpack $ Document.docId document

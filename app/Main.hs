@@ -15,7 +15,7 @@ import Network.Wai.Middleware.Cors
 import Network.Wai                       (Application, Middleware)
 import Network.Wai.Middleware.AddHeaders (addHeaders)
 import Network.Wai.Middleware.RequestLogger
-import Data.Aeson (encode)
+import Data.Aeson (encode, object, (.=))
 import System.Process
 import Data.Text.Lazy (pack, unpack, replace, toLower, Text)
 import Pdf (create, createWithErrorPdf, createWithFailedImages, createWithFilteredErrors, PdfResult(..))
@@ -51,6 +51,10 @@ main = scotty 3000 $ do
             PdfSuccess fname -> do
                 status status200
                 json result
+            PdfWithErrors _ _ _ -> do
+                -- Return 200 OK but with both files in response
+                status status200
+                json result
             PdfError _ _ -> do
                 status status400
                 json result
@@ -58,9 +62,20 @@ main = scotty 3000 $ do
     post "/pdf" $ do
         document <- jsonData :: ActionM Document
         failedImages <- liftIO $ Document.prepareData document
-        -- Use the filtered error version for cleaner error reports
-        pdfFileName <- liftIO $ Pdf.createWithFilteredErrors document failedImages
-        text pdfFileName
+        -- Get the full result to check if we have both PDFs
+        result <- liftIO $ Pdf.create document
+        case result of
+            PdfSuccess fname ->
+                -- Return JSON for consistency
+                json $ object ["pdf" .= fname, "hasErrors" .= False]
+            PdfWithErrors pdfFile errorPdfFile _ -> do
+                -- Return JSON with both filenames when we have errors
+                json $ object ["pdf" .= pdfFile, "errorReport" .= errorPdfFile, "hasErrors" .= True]
+            PdfError _ _ -> do
+                -- Generate error PDF for complete failures
+                pdfFileName <- liftIO $ Pdf.createWithFilteredErrors document failedImages
+                -- Return JSON indicating complete failure
+                json $ object ["errorReport" .= pdfFileName, "hasErrors" .= True, "pdfFailed" .= True]
 
     post "/tar" $ do
         document <- jsonData :: ActionM Document
