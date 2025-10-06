@@ -332,20 +332,18 @@ createPdf_ fileName =
         exitCode1 <- system cmd
         case exitCode1 of
             ExitFailure 124 -> return (ExitFailure 124)  -- Timeout on first run, don't continue
-            ExitSuccess -> do
-                -- First run succeeded, do second run
-                exitCode2 <- system cmd
-                case exitCode2 of
-                    ExitSuccess -> system cmd  -- Third pass for complete TOC
-                    ExitFailure 124 -> return (ExitFailure 124)  -- Timeout
-                    _ -> return exitCode2
             _ -> do
-                -- First run had errors (but not timeout), run second time anyway for better TOC
-                -- Error log from second run will be used in error report
+                -- First run completed (success or error), run second time
                 exitCode2 <- system cmd
                 case exitCode2 of
                     ExitFailure 124 -> return (ExitFailure 124)  -- Timeout on second run
-                    _ -> return exitCode2  -- Return second run's exit code (success or error)
+                    _ -> do
+                        -- Second run completed, run third time for complete TOC/references
+                        -- This is especially important for books with complex cross-references
+                        exitCode3 <- system cmd
+                        case exitCode3 of
+                            ExitFailure 124 -> return (ExitFailure 124)  -- Timeout on third run
+                            _ -> return exitCode3  -- Return third run's exit code
 
 -- HELPERS
 
