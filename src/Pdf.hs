@@ -1,6 +1,7 @@
  {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Pdf (create, createWithErrorPdf, createWithFailedImages, createWithFilteredErrors, PdfResult(..)) where
 
@@ -9,7 +10,8 @@ import System.Process (system, readProcess)
 import qualified Data.String.Utils as SU
 import Text.RawString.QQ
 import Data.List.Utils (replace)
-import Data.List (isInfixOf)
+import Data.List (isInfixOf, isPrefixOf)
+import Data.Maybe (mapMaybe, listToMaybe)
 import Document (Document, ImageElement(..), docId, urlList)
 import GHC.Generics
 import Data.Aeson
@@ -19,6 +21,11 @@ import Control.Exception (catch)
 import System.IO.Error (IOError)
 import Control.Applicative ((<$>))
 import System.Directory (doesFileExist, getFileSize)
+import qualified Data.Map.Strict as Map
+import Data.Char (isDigit)
+import Text.Read (readMaybe)
+import qualified Concordance
+import System.IO.Unsafe (unsafePerformIO)
 
 data PdfResult = PdfSuccess { filename :: Text }
                | PdfError { error :: Text, errorLog :: Text }
@@ -338,9 +345,29 @@ createPdf_ fileName =
 -- Generate a standalone error report PDF
 generateErrorReportPdf :: String -> String -> String -> [ImageElement] -> IO ()
 generateErrorReportPdf originalFileName errorPdfFileName logContent failedImages = do
+    -- Read the LaTeX source for concordance
+    let latexSourcePath = "inbox/" ++ originalFileName
+    putStrLn $ "generateErrorReportPdf: Reading LaTeX source from: " ++ latexSourcePath
+    latexSource <- catch (readFile latexSourcePath) $ \(e :: IOError) -> do
+        putStrLn $ "generateErrorReportPdf: Failed to read LaTeX source: " ++ show e
+        return ""
+    putStrLn $ "generateErrorReportPdf: Read " ++ show (length latexSource) ++ " bytes of LaTeX source"
     let errorTexFileName = "inbox/" ++ replace ".pdf" ".tex" errorPdfFileName
-        filteredLog = filterLatexLogWithUrls logContent failedImages
-        errorTexContent = "\\documentclass{article}\n" ++
+        concordanceMap = buildConcordanceMap logContent latexSource
+    putStrLn $ "generateErrorReportPdf: Built concordance with " ++ show (Map.size concordanceMap) ++ " entries"
+    putStrLn $ "generateErrorReportPdf: Concordance keys: " ++ show (Map.keys concordanceMap)
+
+    -- Extract some error line numbers from the log for debugging
+    let logLines = lines logContent
+        errorLineNumbers = mapMaybe extractLineNumber logLines
+    putStrLn $ "generateErrorReportPdf: Found " ++ show (length errorLineNumbers) ++ " error line references in log"
+    putStrLn $ "generateErrorReportPdf: Sample error lines: " ++ show (take 10 errorLineNumbers)
+
+    let filteredLog = filterLatexLogWithUrls logContent latexSource failedImages
+    putStrLn $ "generateErrorReportPdf: Filtered log length: " ++ show (length filteredLog) ++ " characters"
+    putStrLn $ "generateErrorReportPdf: First 500 chars of filtered log:"
+    putStrLn $ take 500 filteredLog
+    let errorTexContent = "\\documentclass{article}\n" ++
                          "\\usepackage{geometry}\n" ++
                          "\\geometry{letterpaper, margin=1in}\n" ++
                          "\\begin{document}\n" ++
@@ -397,6 +424,19 @@ escapeLatex (c:cs) = case c of
     '%' -> "\\%" ++ escapeLatex cs
     _ -> c : escapeLatex cs
 
+-- Extract line number from "l.NNN" pattern
+extractLineNumber :: String -> Maybe Int
+extractLineNumber line =
+    case dropWhile (/= 'l') line of
+        ('l':'.':rest) -> readMaybe (takeWhile isDigit rest)
+        _ -> Nothing
+
+-- Build concordance map for quick lookup
+buildConcordanceMap :: String -> String -> Map.Map Int Concordance.ErrorLines
+buildConcordanceMap logContent latexSource =
+    let entries = Concordance.buildConcordance logContent latexSource
+    in Map.fromList [(Concordance.latexSrc e, e) | e <- entries]
+
 -- Find failed images mentioned in the LaTeX log
 findFailedImagesInLog :: [String] -> [ImageElement] -> [ImageElement]
 findFailedImagesInLog logLines allFailedImages =
@@ -406,10 +446,16 @@ findFailedImagesInLog logLines allFailedImages =
         ("Unable to load" `isInfixOf` line && fname `isInfixOf` line) ||
         ("image/" ++ fname) `isInfixOf` line && "!" `isInfixOf` line
 
--- Filter LaTeX log to extract only error messages, with URL annotations for images
-filterLatexLogWithUrls :: String -> [ImageElement] -> String
-filterLatexLogWithUrls logContent failedImages =
+-- Filter LaTeX log to extract only error messages, with URL annotations for images and concordance info
+filterLatexLogWithUrls :: String -> String -> [ImageElement] -> String
+filterLatexLogWithUrls logContent latexSource failedImages =
     let logLines = lines logContent
+        -- Build concordance map
+        concordanceMap = buildConcordanceMap logContent latexSource
+        _ = unsafePerformIO $ putStrLn $ "filterLatexLogWithUrls: Processing " ++ show (length logLines) ++ " log lines"
+        _ = unsafePerformIO $ putStrLn $ "filterLatexLogWithUrls: Concordance map has " ++ show (Map.size concordanceMap) ++ " entries"
+        _ = unsafePerformIO $ putStrLn $ "filterLatexLogWithUrls: Concordance keys: " ++ show (Map.keys concordanceMap)
+
         -- Filter out font loading lines and other boilerplate
         isBoilerplateLine line = any (`isInfixOf` line)
             [ "LaTeX Font Info:"
@@ -466,31 +512,28 @@ filterLatexLogWithUrls logContent failedImages =
             , "<*>"
             ]
 
-        -- Check if line mentions a failed image and add URL annotation
-        annotateImageError :: String -> String
-        annotateImageError line =
-            case findImageInLine line failedImages of
-                Just img -> line ++ "\n    [Original URL: " ++ Document.url img ++ "]"
-                Nothing -> line
-
-        -- Find if any failed image is mentioned in this line
-        findImageInLine :: String -> [ImageElement] -> Maybe ImageElement
-        findImageInLine line imgs =
-            case filter (\img -> Document.filename img `isInfixOf` line) imgs of
-                (img:_) -> Just img
-                [] -> Nothing
-
         -- Also include a few lines after each error for context
+        -- Look ahead in context lines for line number references
         extractErrors :: [String] -> [String]
         extractErrors [] = []
         extractErrors (line:rest)
-            | isErrorLine line = annotateImageError line : takeContext 3 rest ++ extractErrors (drop 3 rest)
+            | isErrorLine line =
+                let contextLines = take 3 rest
+                    -- Look for line number in current line or context
+                    lineNum = case extractLineNumber line of
+                        Just n -> Just n
+                        Nothing -> listToMaybe $ mapMaybe extractLineNumber contextLines
+                    annotation = case lineNum of
+                        Just n -> case Map.lookup n concordanceMap of
+                            Just entry ->
+                                ">>> Scripta text at line " ++ show (Concordance.scriptaSrc entry) ++
+                                " produced the above error (" ++ show (Concordance.begin entry) ++
+                                ", " ++ show (Concordance.end entry) ++ "):\n"
+                            Nothing ->
+                                ">>> Error at LaTeX line " ++ show n ++ " (in document preamble, no source mapping available)\n"
+                        Nothing -> ""
+                in annotation : line : contextLines ++ extractErrors (drop 3 rest)
             | otherwise = extractErrors rest
-
-        takeContext :: Int -> [String] -> [String]
-        takeContext 0 _ = []
-        takeContext _ [] = []
-        takeContext n (x:xs) = annotateImageError x : takeContext (n-1) xs
 
         -- Apply filtering to cleaned lines
         filteredLines = extractErrors cleanedLines
@@ -500,7 +543,7 @@ filterLatexLogWithUrls logContent failedImages =
 
 -- Original filter without URL annotations (kept for compatibility)
 filterLatexLog :: String -> String
-filterLatexLog logContent = filterLatexLogWithUrls logContent []
+filterLatexLog logContent = filterLatexLogWithUrls logContent "" []
 
 -- Create PDF with filtered error messages (cleaner version)
 createWithFilteredErrors :: Document -> [ImageElement] -> IO Text
@@ -556,8 +599,17 @@ createWithFilteredErrors document failedImages = do
                         isTimeout = "timed out" `isInfixOf` (unpack errMsg)
                         -- Get all images from the document for URL mapping
                         allImages = urlList document
-                        -- Filter the error log to show only relevant errors, with URL annotations for ALL images
-                        filteredLog = filterLatexLogWithUrls (unpack logContent) allImages
+                        latexSourcePath = "inbox/" ++ fileName
+                    -- Read the LaTeX source for concordance
+                    putStrLn $ "createWithFilteredErrors: Reading LaTeX source from: " ++ latexSourcePath
+                    latexSource <- catch (readFile latexSourcePath) $ \(e :: IOError) -> do
+                        putStrLn $ "createWithFilteredErrors: Failed to read LaTeX source: " ++ show e
+                        return ""
+                    putStrLn $ "createWithFilteredErrors: Read " ++ show (length latexSource) ++ " bytes"
+                    let concordanceMap = buildConcordanceMap (unpack logContent) latexSource
+                    putStrLn $ "createWithFilteredErrors: Built concordance with " ++ show (Map.size concordanceMap) ++ " entries"
+                    let -- Filter the error log to show only relevant errors, with URL annotations for ALL images
+                        filteredLog = filterLatexLogWithUrls (unpack logContent) latexSource allImages
                         -- Look for specific errors in the log
                         logLines = lines (unpack logContent)
                         hasImageError = not isTimeout && any (\line -> "Unable to load picture" `isInfixOf` line || "! Unable to load" `isInfixOf` line) logLines

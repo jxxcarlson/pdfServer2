@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 72a9ef3d2460572c1fe013e1cad43c887e81e3a653ed7b5cb149c5487014c3a6
+-- hash: ed1af7ba557d33cb4a46c9d47a1e1f5fc3f13537836fa7c489a4adfb386af885
 
 name:           pdfServerScotty
 version:        0.1.0.0
@@ -27,6 +27,7 @@ source-repository head
 
 library
   exposed-modules:
+      Concordance
       Document
       Image
       Pdf
@@ -40,6 +41,7 @@ library
     , aeson
     , base >=4.7 && <5
     , bytestring
+    , containers
     , directory
     , filepath
     , http-client
