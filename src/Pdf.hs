@@ -328,17 +328,24 @@ createPdf_ fileName =
         -- Exit code 124 means timeout occurred
         cmd = "timeout 30 xelatex -output-directory=outbox -interaction=batchmode " ++ texFilename ++ " >/dev/null 2>&1"
     in do
-        -- Run xelatex three times for proper TOC and reference resolution
+        -- Run xelatex first time
         exitCode1 <- system cmd
         case exitCode1 of
+            ExitFailure 124 -> return (ExitFailure 124)  -- Timeout on first run, don't continue
             ExitSuccess -> do
+                -- First run succeeded, do second run
                 exitCode2 <- system cmd
                 case exitCode2 of
                     ExitSuccess -> system cmd  -- Third pass for complete TOC
                     ExitFailure 124 -> return (ExitFailure 124)  -- Timeout
                     _ -> return exitCode2
-            ExitFailure 124 -> return (ExitFailure 124)  -- Timeout
-            _ -> return exitCode1
+            _ -> do
+                -- First run had errors (but not timeout), run second time anyway for better TOC
+                -- Error log from second run will be used in error report
+                exitCode2 <- system cmd
+                case exitCode2 of
+                    ExitFailure 124 -> return (ExitFailure 124)  -- Timeout on second run
+                    _ -> return exitCode2  -- Return second run's exit code (success or error)
 
 -- HELPERS
 
