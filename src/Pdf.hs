@@ -51,6 +51,10 @@ create document =
     in
     do
         putStrLn $ "create: Processing document: " ++ fileName
+        -- JC:temporary - Save a copy of the LaTeX file for debugging
+        system "mkdir -p save 2>/dev/null || true" >>= \_ -> return ()
+        system ("cp inbox/" ++ fileName ++ " save/" ++ fileName ++ " 2>/dev/null || true") >>= \_ -> return ()
+
         exitCode <- createPdf_ fileName
         putStrLn $ "create: XeLaTeX exit code: " ++ show exitCode
 
@@ -112,6 +116,7 @@ create document =
                             let errorPdfFileName = replace ".pdf" "-errors.pdf" pdfFileName
                             generateErrorReportPdf fileName errorPdfFileName logContent allImages
 
+                            -- JC TODO: temporarily disable cleanup to keep artifacts for debugging
                             system removeInputs >>= \_ -> return ()
                             system removeOldOutboxFiles >>= \_ -> return ()
 
