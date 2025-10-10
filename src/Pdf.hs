@@ -438,6 +438,7 @@ generateErrorReportText originalFileName errorTextFileName errorJsonFileName log
 
     combineGroup :: [ErrorRecord] -> ErrorRecord
     combineGroup [] = Prelude.error "combineGroup: empty list"
+    combineGroup [single] = single  -- Keep single errors as-is, no numbering
     combineGroup records@(first:_) =
         let texts = map latexText records
             numberedTexts = zipWith (\n t -> "(" ++ show n ++ ") " ++ t) [1..] texts
