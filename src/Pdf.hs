@@ -412,10 +412,8 @@ generateErrorReportText originalFileName errorTextFileName logContent failedImag
     -- Build JSON error records
     let latexLines = lines latexSource
         errorRecords = mapMaybe (buildErrorRecord latexLines concordanceMap) errorLineNumbers
-        -- Remove duplicates from error records
-        uniqueErrorRecords = nubBy (\a b -> scriptaLine a == scriptaLine b &&
-                                            latexLine a == latexLine b &&
-                                            latexText a == latexText b) errorRecords
+        -- Remove duplicates - keep only first item with each scripta-line
+        uniqueErrorRecords = nubBy (\a b -> scriptaLine a == scriptaLine b) errorRecords
 
     -- Write JSON to save/error.json with each element on a single line
     let jsonPath = "save/error.json"
