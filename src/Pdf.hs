@@ -520,6 +520,12 @@ filterLatexLogWithUrls logContent latexSource failedImages =
                     -- Remove trailing blank/whitespace-only lines from context
                     isBlank s = all (\c -> c == ' ' || c == '\t') s
                     trimmedContext = reverse $ dropWhile isBlank $ reverse contextLines
+                    -- Insert blank line before line number references (lines starting with "l.")
+                    insertBlankBeforeLineNum [] = []
+                    insertBlankBeforeLineNum (l:ls)
+                        | "l." `isPrefixOf` l = "" : l : insertBlankBeforeLineNum ls
+                        | otherwise = l : insertBlankBeforeLineNum ls
+                    contextWithBlanks = insertBlankBeforeLineNum trimmedContext
                     -- Look for line number in current line or context
                     lineNum = case extractLineNumber line of
                         Just n -> Just n
@@ -540,7 +546,7 @@ filterLatexLogWithUrls logContent latexSource failedImages =
                                  " (in document preamble, no source mapping available)]",
                                  ""]
                         Nothing -> []
-                in line : trimmedContext ++ annotation ++ extractErrors (drop 3 rest)
+                in line : contextWithBlanks ++ annotation ++ extractErrors (drop 3 rest)
             | otherwise = extractErrors rest
 
         -- Apply filtering to cleaned lines
