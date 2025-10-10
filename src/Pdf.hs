@@ -10,7 +10,8 @@ import System.Process (system, readProcess)
 import qualified Data.String.Utils as SU
 import Text.RawString.QQ
 import Data.List.Utils (replace)
-import Data.List (isInfixOf, isPrefixOf, nubBy)
+import Data.List (isInfixOf, isPrefixOf, groupBy, sortBy, intersperse)
+import Data.Ord (comparing)
 import Data.Maybe (mapMaybe, listToMaybe)
 import Document (Document, ImageElement(..), docId, urlList)
 import GHC.Generics
@@ -402,8 +403,10 @@ generateErrorReportText originalFileName errorTextFileName errorJsonFileName log
     -- Build JSON error records
     let latexLines = lines latexSource
         errorRecords = mapMaybe (buildErrorRecord latexLines concordanceMap) errorLineNumbers
-        -- Remove duplicates - keep only first item with each scripta-line
-        uniqueErrorRecords = nubBy (\a b -> scriptaLine a == scriptaLine b) errorRecords
+        -- Group and combine records by scripta-line
+        sortedRecords = sortBy (comparing scriptaLine) errorRecords
+        groupedRecords = groupBy (\a b -> scriptaLine a == scriptaLine b) sortedRecords
+        uniqueErrorRecords = map combineGroup groupedRecords
 
     -- Write JSON to outbox/ with each element on a single line
     let jsonPath = "outbox/" ++ errorJsonFileName
@@ -432,6 +435,20 @@ generateErrorReportText originalFileName errorTextFileName errorJsonFileName log
                     , latexText = latexText
                     }
             Nothing -> Nothing
+
+    combineGroup :: [ErrorRecord] -> ErrorRecord
+    combineGroup [] = Prelude.error "combineGroup: empty list"
+    combineGroup records@(first:_) =
+        let texts = map latexText records
+            numberedTexts = zipWith (\n t -> "(" ++ show n ++ ") " ++ t) [1..] texts
+            combinedText = concat $ intersperse "; " numberedTexts
+        in ErrorRecord
+            { scriptaLine = scriptaLine first
+            , latexLine = latexLine first
+            , latexBegin = latexBegin first
+            , latexEnd = latexEnd first
+            , latexText = combinedText
+            }
 
 readLogFile :: String -> IO String
 readLogFile logPath = do
