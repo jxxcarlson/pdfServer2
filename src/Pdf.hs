@@ -529,11 +529,13 @@ filterLatexLogWithUrls logContent latexSource failedImages =
                                  "[scriptaErrorAt " ++ show (Concordance.scriptaSrc entry) ++
                                  " >>> Scripta text at line " ++ show (Concordance.scriptaSrc entry) ++
                                  " produced the above error (" ++ show (Concordance.begin entry) ++
-                                 ", " ++ show (Concordance.end entry) ++ ")]"]
+                                 ", " ++ show (Concordance.end entry) ++ ")]",
+                                 ""]
                             Nothing ->
                                 ["[par]",
                                  "[scriptaErrorAt " ++ show n ++ " >>> Error at LaTeX line " ++ show n ++
-                                 " (in document preamble, no source mapping available)]"]
+                                 " (in document preamble, no source mapping available)]",
+                                 ""]
                         Nothing -> []
                 in line : contextLines ++ annotation ++ extractErrors (drop 3 rest)
             | otherwise = extractErrors rest
