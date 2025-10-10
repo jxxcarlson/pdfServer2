@@ -10,7 +10,7 @@ import System.Process (system, readProcess)
 import qualified Data.String.Utils as SU
 import Text.RawString.QQ
 import Data.List.Utils (replace)
-import Data.List (isInfixOf, isPrefixOf)
+import Data.List (isInfixOf, isPrefixOf, nubBy)
 import Data.Maybe (mapMaybe, listToMaybe)
 import Document (Document, ImageElement(..), docId, urlList)
 import GHC.Generics
@@ -411,11 +411,15 @@ generateErrorReportText originalFileName errorTextFileName logContent failedImag
     -- Build JSON error records
     let latexLines = lines latexSource
         errorRecords = mapMaybe (buildErrorRecord latexLines concordanceMap) errorLineNumbers
+        -- Remove duplicates from error records
+        uniqueErrorRecords = nubBy (\a b -> scriptaLine a == scriptaLine b &&
+                                            latexLine a == latexLine b &&
+                                            latexText a == latexText b) errorRecords
 
     -- Write JSON to save/error.json
     let jsonPath = "save/error.json"
-    BL.writeFile jsonPath (encode errorRecords)
-    putStrLn $ "generateErrorReportText: Wrote " ++ show (length errorRecords) ++ " error records to " ++ jsonPath
+    BL.writeFile jsonPath (encode uniqueErrorRecords)
+    putStrLn $ "generateErrorReportText: Wrote " ++ show (length uniqueErrorRecords) ++ " unique error records to " ++ jsonPath
 
     return ()
   where
