@@ -27,18 +27,17 @@ import qualified Data.Map.Strict as Map
 import Data.Char (isDigit, isSpace)
 import Text.Read (readMaybe)
 import qualified Concordance
-import System.IO.Unsafe (unsafePerformIO)
 
 data PdfResult = PdfSuccess { filename :: Text }
                | PdfError { error :: Text, errorLog :: Text }
-               | PdfWithErrors { pdfFile :: Text, errorPdfFile :: Text, errorMsg :: Text }
+               | PdfWithErrors { pdfFile :: Text, errorPdfFile :: Text, errorJsonData :: [ErrorRecord], errorMsg :: Text }
                deriving (Show, Generic)
 
 instance ToJSON PdfResult where
     toJSON (PdfSuccess fname) = object ["success" .= True, "filename" .= fname]
     toJSON (PdfError err log) = object ["success" .= False, "error" .= err, "log" .= log]
-    toJSON (PdfWithErrors pdf errorPdf msg) = object
-        ["success" .= False, "pdfFile" .= pdf, "errorPdfFile" .= errorPdf, "error" .= msg]
+    toJSON (PdfWithErrors pdf errorPdf errorJson msg) = object
+        ["success" .= False, "pdfFile" .= pdf, "errorPdfFile" .= errorPdf, "errorJson" .= errorJson, "error" .= msg]
 
 data ErrorRecord = ErrorRecord
     { scriptaLine :: Int
@@ -126,16 +125,17 @@ create document =
                             fileSize <- getFileSize outputPdfPath
                             putStrLn $ "create: PDF file exists but may be damaged (size: " ++ show fileSize ++ " bytes)"
 
-                            -- Generate an error report text file alongside the damaged PDF
+                            -- Generate an error report text file and JSON file alongside the damaged PDF
                             let errorTextFileName = replace ".pdf" "-errors.txt" pdfFileName
-                            generateErrorReportText fileName errorTextFileName logContent allImages
+                                errorJsonFileName = replace ".pdf" "-errors.json" pdfFileName
+                            errorRecords <- generateErrorReportText fileName errorTextFileName errorJsonFileName logContent allImages
 
                             -- JC TODO: temporarily disable cleanup to keep artifacts for debugging
                             system removeInputs >>= \_ -> return ()
                             system removeOldOutboxFiles >>= \_ -> return ()
 
-                            -- Return both the (possibly damaged) PDF and the error report text file
-                            return $ PdfWithErrors (pack pdfFileName) (pack errorTextFileName)
+                            -- Return the PDF, error report text file, and JSON data
+                            return $ PdfWithErrors (pack pdfFileName) (pack errorTextFileName) errorRecords
                                 (pack "LaTeX compilation had errors - PDF may be incomplete")
                         else do
                             putStrLn $ "create: No PDF file was created"
@@ -366,28 +366,19 @@ createPdf_ fileName =
 
 -- HELPERS
 
--- Generate a standalone error report as a text file
-generateErrorReportText :: String -> String -> String -> [ImageElement] -> IO ()
-generateErrorReportText originalFileName errorTextFileName logContent failedImages = do
+-- Generate a standalone error report as a text file and JSON file
+generateErrorReportText :: String -> String -> String -> String -> [ImageElement] -> IO [ErrorRecord]
+generateErrorReportText originalFileName errorTextFileName errorJsonFileName logContent failedImages = do
     -- Read the LaTeX source for concordance
     let latexSourcePath = "inbox/" ++ originalFileName
-    putStrLn $ "generateErrorReportText: Reading LaTeX source from: " ++ latexSourcePath
-    latexSource <- catch (readFile latexSourcePath) $ \(e :: IOError) -> do
-        putStrLn $ "generateErrorReportText: Failed to read LaTeX source: " ++ show e
-        return ""
-    putStrLn $ "generateErrorReportText: Read " ++ show (length latexSource) ++ " bytes of LaTeX source"
+    latexSource <- catch (readFile latexSourcePath) $ \(e :: IOError) -> return ""
     let concordanceMap = buildConcordanceMap logContent latexSource
-    putStrLn $ "generateErrorReportText: Built concordance with " ++ show (Map.size concordanceMap) ++ " entries"
-    putStrLn $ "generateErrorReportText: Concordance keys: " ++ show (Map.keys concordanceMap)
 
-    -- Extract some error line numbers from the log for debugging
+    -- Extract error line numbers from the log
     let logLines = lines logContent
         errorLineNumbers = mapMaybe extractLineNumber logLines
-    putStrLn $ "generateErrorReportText: Found " ++ show (length errorLineNumbers) ++ " error line references in log"
-    putStrLn $ "generateErrorReportText: Sample error lines: " ++ show (take 10 errorLineNumbers)
 
     let filteredLog = filterLatexLogWithUrls logContent latexSource failedImages
-    putStrLn $ "generateErrorReportText: Filtered log length: " ++ show (length filteredLog) ++ " characters"
 
     -- Build the text error report
     let errorTextContent = "LaTeX Compilation Error Report\n" ++
@@ -407,7 +398,6 @@ generateErrorReportText originalFileName errorTextFileName logContent failedImag
     -- Write the error report to a text file
     let errorTextPath = "outbox/" ++ errorTextFileName
     writeFile errorTextPath errorTextContent
-    putStrLn $ "generateErrorReportText: Wrote error log to " ++ errorTextPath
 
     -- Build JSON error records
     let latexLines = lines latexSource
@@ -415,8 +405,8 @@ generateErrorReportText originalFileName errorTextFileName logContent failedImag
         -- Remove duplicates - keep only first item with each scripta-line
         uniqueErrorRecords = nubBy (\a b -> scriptaLine a == scriptaLine b) errorRecords
 
-    -- Write JSON to save/error.json with each element on a single line
-    let jsonPath = "save/error.json"
+    -- Write JSON to outbox/ with each element on a single line
+    let jsonPath = "outbox/" ++ errorJsonFileName
         -- Format as compact JSON with each object on one line
         formattedJson = if null uniqueErrorRecords
                         then "[]"
@@ -424,9 +414,8 @@ generateErrorReportText originalFileName errorTextFileName logContent failedImag
                              BLC.unpack (BLC.intercalate ",\n" (map encode uniqueErrorRecords)) ++
                              "\n]"
     writeFile jsonPath formattedJson
-    putStrLn $ "generateErrorReportText: Wrote " ++ show (length uniqueErrorRecords) ++ " unique error records to " ++ jsonPath
 
-    return ()
+    return uniqueErrorRecords
   where
     buildErrorRecord :: [String] -> Map.Map Int Concordance.ErrorLines -> Int -> Maybe ErrorRecord
     buildErrorRecord latexLines concordanceMap latexLineNum =
@@ -509,9 +498,6 @@ filterLatexLogWithUrls logContent latexSource failedImages =
     let logLines = lines logContent
         -- Build concordance map
         concordanceMap = buildConcordanceMap logContent latexSource
-        _ = unsafePerformIO $ putStrLn $ "filterLatexLogWithUrls: Processing " ++ show (length logLines) ++ " log lines"
-        _ = unsafePerformIO $ putStrLn $ "filterLatexLogWithUrls: Concordance map has " ++ show (Map.size concordanceMap) ++ " entries"
-        _ = unsafePerformIO $ putStrLn $ "filterLatexLogWithUrls: Concordance keys: " ++ show (Map.keys concordanceMap)
 
         -- Filter out font loading lines and other boilerplate
         isBoilerplateLine line = any (`isInfixOf` line)
@@ -658,7 +644,7 @@ createWithFilteredErrors document failedImages = do
             putStrLn $ "createWithFilteredErrors: Got result: " ++ show result
             case result of
                 PdfSuccess fname -> return fname
-                PdfWithErrors pdfFile errorPdfFile errMsg -> do
+                PdfWithErrors pdfFile errorPdfFile errorJsonFile errMsg -> do
                     -- When we have both files, return the error PDF filename
                     -- The client can choose which one to display
                     putStrLn $ "createWithFilteredErrors: Both PDF and error report available"

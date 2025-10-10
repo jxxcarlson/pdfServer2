@@ -51,8 +51,8 @@ main = scotty 3000 $ do
             PdfSuccess fname -> do
                 status status200
                 json result
-            PdfWithErrors _ _ _ -> do
-                -- Return 200 OK but with both files in response
+            PdfWithErrors _ _ _ _ -> do
+                -- Return 200 OK but with all three files in response
                 status status200
                 json result
             PdfError _ _ -> do
@@ -68,9 +68,9 @@ main = scotty 3000 $ do
             PdfSuccess fname ->
                 -- Return JSON for consistency
                 json $ object ["pdf" .= fname, "hasErrors" .= False]
-            PdfWithErrors pdfFile errorPdfFile _ -> do
-                -- Return JSON with both filenames when we have errors
-                json $ object ["pdf" .= pdfFile, "errorReport" .= errorPdfFile, "hasErrors" .= True]
+            PdfWithErrors pdfFile errorPdfFile errorJsonFile _ -> do
+                -- Return JSON with all three filenames when we have errors
+                json $ object ["pdf" .= pdfFile, "errorReport" .= errorPdfFile, "errorJson" .= errorJsonFile, "hasErrors" .= True]
             PdfError _ _ -> do
                 -- Generate error PDF for complete failures
                 pdfFileName <- liftIO $ Pdf.createWithFilteredErrors document failedImages
