@@ -521,23 +521,19 @@ filterLatexLogWithUrls logContent latexSource failedImages =
                     lineNum = case extractLineNumber line of
                         Just n -> Just n
                         Nothing -> listToMaybe $ mapMaybe extractLineNumber contextLines
-                    -- Build annotation to append to last context line
+                    -- Build annotation as a separate line
                     annotation = case lineNum of
                         Just n -> case Map.lookup n concordanceMap of
                             Just entry ->
-                                " [cmError " ++ show n ++ " >>> Scripta text at line " ++
-                                show (Concordance.scriptaSrc entry) ++
+                                ["[scriptaErrorAt " ++ show (Concordance.scriptaSrc entry) ++
+                                " >>> Scripta text at line " ++ show (Concordance.scriptaSrc entry) ++
                                 " produced the above error (" ++ show (Concordance.begin entry) ++
-                                ", " ++ show (Concordance.end entry) ++ ")]"
+                                ", " ++ show (Concordance.end entry) ++ ")]"]
                             Nothing ->
-                                " [cmError " ++ show n ++ " >>> Error at LaTeX line " ++ show n ++
-                                " (in document preamble, no source mapping available)]"
-                        Nothing -> ""
-                    -- Append annotation to the last context line
-                    annotatedContext = case reverse contextLines of
-                        [] -> contextLines
-                        (lastLine:otherLines) -> reverse otherLines ++ [lastLine ++ annotation]
-                in line : annotatedContext ++ extractErrors (drop 3 rest)
+                                ["[scriptaErrorAt " ++ show n ++ " >>> Error at LaTeX line " ++ show n ++
+                                " (in document preamble, no source mapping available)]"]
+                        Nothing -> []
+                in line : contextLines ++ annotation ++ extractErrors (drop 3 rest)
             | otherwise = extractErrors rest
 
         -- Apply filtering to cleaned lines
