@@ -112,16 +112,16 @@ create document =
                             fileSize <- getFileSize outputPdfPath
                             putStrLn $ "create: PDF file exists but may be damaged (size: " ++ show fileSize ++ " bytes)"
 
-                            -- Generate an error report PDF alongside the damaged PDF
-                            let errorPdfFileName = replace ".pdf" "-errors.pdf" pdfFileName
-                            generateErrorReportPdf fileName errorPdfFileName logContent allImages
+                            -- Generate an error report text file alongside the damaged PDF
+                            let errorTextFileName = replace ".pdf" "-errors.txt" pdfFileName
+                            generateErrorReportText fileName errorTextFileName logContent allImages
 
                             -- JC TODO: temporarily disable cleanup to keep artifacts for debugging
                             system removeInputs >>= \_ -> return ()
                             system removeOldOutboxFiles >>= \_ -> return ()
 
-                            -- Return both the (possibly damaged) PDF and the error report PDF
-                            return $ PdfWithErrors (pack pdfFileName) (pack errorPdfFileName)
+                            -- Return both the (possibly damaged) PDF and the error report text file
+                            return $ PdfWithErrors (pack pdfFileName) (pack errorTextFileName)
                                 (pack "LaTeX compilation had errors - PDF may be incomplete")
                         else do
                             putStrLn $ "create: No PDF file was created"
@@ -352,60 +352,48 @@ createPdf_ fileName =
 
 -- HELPERS
 
--- Generate a standalone error report PDF
-generateErrorReportPdf :: String -> String -> String -> [ImageElement] -> IO ()
-generateErrorReportPdf originalFileName errorPdfFileName logContent failedImages = do
+-- Generate a standalone error report as a text file
+generateErrorReportText :: String -> String -> String -> [ImageElement] -> IO ()
+generateErrorReportText originalFileName errorTextFileName logContent failedImages = do
     -- Read the LaTeX source for concordance
     let latexSourcePath = "inbox/" ++ originalFileName
-    putStrLn $ "generateErrorReportPdf: Reading LaTeX source from: " ++ latexSourcePath
+    putStrLn $ "generateErrorReportText: Reading LaTeX source from: " ++ latexSourcePath
     latexSource <- catch (readFile latexSourcePath) $ \(e :: IOError) -> do
-        putStrLn $ "generateErrorReportPdf: Failed to read LaTeX source: " ++ show e
+        putStrLn $ "generateErrorReportText: Failed to read LaTeX source: " ++ show e
         return ""
-    putStrLn $ "generateErrorReportPdf: Read " ++ show (length latexSource) ++ " bytes of LaTeX source"
-    let errorTexFileName = "inbox/" ++ replace ".pdf" ".tex" errorPdfFileName
-        concordanceMap = buildConcordanceMap logContent latexSource
-    putStrLn $ "generateErrorReportPdf: Built concordance with " ++ show (Map.size concordanceMap) ++ " entries"
-    putStrLn $ "generateErrorReportPdf: Concordance keys: " ++ show (Map.keys concordanceMap)
+    putStrLn $ "generateErrorReportText: Read " ++ show (length latexSource) ++ " bytes of LaTeX source"
+    let concordanceMap = buildConcordanceMap logContent latexSource
+    putStrLn $ "generateErrorReportText: Built concordance with " ++ show (Map.size concordanceMap) ++ " entries"
+    putStrLn $ "generateErrorReportText: Concordance keys: " ++ show (Map.keys concordanceMap)
 
     -- Extract some error line numbers from the log for debugging
     let logLines = lines logContent
         errorLineNumbers = mapMaybe extractLineNumber logLines
-    putStrLn $ "generateErrorReportPdf: Found " ++ show (length errorLineNumbers) ++ " error line references in log"
-    putStrLn $ "generateErrorReportPdf: Sample error lines: " ++ show (take 10 errorLineNumbers)
+    putStrLn $ "generateErrorReportText: Found " ++ show (length errorLineNumbers) ++ " error line references in log"
+    putStrLn $ "generateErrorReportText: Sample error lines: " ++ show (take 10 errorLineNumbers)
 
     let filteredLog = filterLatexLogWithUrls logContent latexSource failedImages
-    putStrLn $ "generateErrorReportPdf: Filtered log length: " ++ show (length filteredLog) ++ " characters"
-    putStrLn $ "generateErrorReportPdf: First 500 chars of filtered log:"
-    putStrLn $ take 500 filteredLog
-    let errorTexContent = "\\documentclass{article}\n" ++
-                         "\\usepackage{geometry}\n" ++
-                         "\\geometry{letterpaper, margin=1in}\n" ++
-                         "\\begin{document}\n" ++
-                         "\\title{LaTeX Compilation Error Report}\n" ++
-                         "\\date{\\today}\n" ++
-                         "\\maketitle\n" ++
-                         "\\section{Summary}\n" ++
-                         "LaTeX compilation completed with errors. The PDF was generated but may be incomplete or have issues.\n\n" ++
-                         "\\section{Original Document}\n" ++
-                         "\\texttt{" ++ originalFileName ++ "}\n\n" ++
-                         (if not (null failedImages) then
-                            "\\section{Failed Image Downloads}\n" ++
-                            "\\begin{itemize}\n" ++
-                            concatMap (\img -> "\\item \\textbf{" ++ Document.filename img ++ "}: " ++
-                                             escapeLatex (Document.url img) ++ "\n") failedImages ++
-                            "\\end{itemize}\n\n"
-                          else "") ++
-                         "\\section{Error Log (Filtered)}\n" ++
-                         "{\\small\n" ++
-                         "\\begin{verbatim}\n" ++
-                         filteredLog ++ "\n" ++
-                         "\\end{verbatim}\n" ++
-                         "}\n" ++
-                         "\\end{document}"
-    -- Write and compile the error report
-    writeFile errorTexFileName errorTexContent
-    system $ "xelatex -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1"
-    system $ "rm -f " ++ errorTexFileName ++ " 2>/dev/null"
+    putStrLn $ "generateErrorReportText: Filtered log length: " ++ show (length filteredLog) ++ " characters"
+
+    -- Build the text error report
+    let errorTextContent = "LaTeX Compilation Error Report\n" ++
+                          "================================\n\n" ++
+                          "Original Document: " ++ originalFileName ++ "\n\n" ++
+                          (if not (null failedImages) then
+                             "Failed Image Downloads:\n" ++
+                             "----------------------\n" ++
+                             concatMap (\img -> "  * " ++ Document.filename img ++ "\n" ++
+                                              "    URL: " ++ Document.url img ++ "\n") failedImages ++
+                             "\n"
+                           else "") ++
+                          "Error Log (with source line annotations):\n" ++
+                          "========================================\n\n" ++
+                          filteredLog
+
+    -- Write the error report to a text file
+    let errorTextPath = "outbox/" ++ errorTextFileName
+    writeFile errorTextPath errorTextContent
+    putStrLn $ "generateErrorReportText: Wrote error log to " ++ errorTextPath
     return ()
 
 readLogFile :: String -> IO String
