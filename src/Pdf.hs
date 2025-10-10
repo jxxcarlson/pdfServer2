@@ -16,6 +16,7 @@ import Document (Document, ImageElement(..), docId, urlList)
 import GHC.Generics
 import Data.Aeson
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Lazy.Char8 as BLC
 import System.Exit (ExitCode(..))
 import System.IO (readFile)
 import Control.Exception (catch)
@@ -416,9 +417,15 @@ generateErrorReportText originalFileName errorTextFileName logContent failedImag
                                             latexLine a == latexLine b &&
                                             latexText a == latexText b) errorRecords
 
-    -- Write JSON to save/error.json
+    -- Write JSON to save/error.json with each element on a single line
     let jsonPath = "save/error.json"
-    BL.writeFile jsonPath (encode uniqueErrorRecords)
+        -- Format as compact JSON with each object on one line
+        formattedJson = if null uniqueErrorRecords
+                        then "[]"
+                        else "[\n" ++
+                             BLC.unpack (BLC.intercalate ",\n" (map encode uniqueErrorRecords)) ++
+                             "\n]"
+    writeFile jsonPath formattedJson
     putStrLn $ "generateErrorReportText: Wrote " ++ show (length uniqueErrorRecords) ++ " unique error records to " ++ jsonPath
 
     return ()
