@@ -15,6 +15,7 @@ import Data.Maybe (mapMaybe, listToMaybe)
 import Document (Document, ImageElement(..), docId, urlList)
 import GHC.Generics
 import Data.Aeson
+import qualified Data.ByteString.Lazy as BL
 import System.Exit (ExitCode(..))
 import System.IO (readFile)
 import Control.Exception (catch)
@@ -22,7 +23,7 @@ import System.IO.Error (IOError)
 import Control.Applicative ((<$>))
 import System.Directory (doesFileExist, getFileSize)
 import qualified Data.Map.Strict as Map
-import Data.Char (isDigit)
+import Data.Char (isDigit, isSpace)
 import Text.Read (readMaybe)
 import qualified Concordance
 import System.IO.Unsafe (unsafePerformIO)
@@ -37,6 +38,18 @@ instance ToJSON PdfResult where
     toJSON (PdfError err log) = object ["success" .= False, "error" .= err, "log" .= log]
     toJSON (PdfWithErrors pdf errorPdf msg) = object
         ["success" .= False, "pdfFile" .= pdf, "errorPdfFile" .= errorPdf, "error" .= msg]
+
+data ErrorRecord = ErrorRecord
+    { scriptaLine :: Int
+    , latexLine :: Int
+    , latexBegin :: Int
+    , latexEnd :: Int
+    , latexText :: String
+    } deriving (Show, Generic)
+
+instance ToJSON ErrorRecord where
+    toJSON (ErrorRecord sl ll lb le lt) = object
+        ["scripta-line" .= sl, "latex-line" .= ll, "latex-begin" .= lb, "latex-end" .= le, "latex-text" .= lt]
 
 create :: Document -> IO PdfResult
 create document =
@@ -394,7 +407,33 @@ generateErrorReportText originalFileName errorTextFileName logContent failedImag
     let errorTextPath = "outbox/" ++ errorTextFileName
     writeFile errorTextPath errorTextContent
     putStrLn $ "generateErrorReportText: Wrote error log to " ++ errorTextPath
+
+    -- Build JSON error records
+    let latexLines = lines latexSource
+        errorRecords = mapMaybe (buildErrorRecord latexLines concordanceMap) errorLineNumbers
+
+    -- Write JSON to save/error.json
+    let jsonPath = "save/error.json"
+    BL.writeFile jsonPath (encode errorRecords)
+    putStrLn $ "generateErrorReportText: Wrote " ++ show (length errorRecords) ++ " error records to " ++ jsonPath
+
     return ()
+  where
+    buildErrorRecord :: [String] -> Map.Map Int Concordance.ErrorLines -> Int -> Maybe ErrorRecord
+    buildErrorRecord latexLines concordanceMap latexLineNum =
+        case Map.lookup latexLineNum concordanceMap of
+            Just entry ->
+                let latexText = if latexLineNum > 0 && latexLineNum <= length latexLines
+                                then latexLines !! (latexLineNum - 1)
+                                else ""
+                in Just $ ErrorRecord
+                    { scriptaLine = Concordance.scriptaSrc entry
+                    , latexLine = latexLineNum
+                    , latexBegin = Concordance.begin entry
+                    , latexEnd = Concordance.end entry
+                    , latexText = latexText
+                    }
+            Nothing -> Nothing
 
 readLogFile :: String -> IO String
 readLogFile logPath = do
@@ -428,6 +467,17 @@ extractLineNumber line =
     case dropWhile (/= 'l') line of
         ('l':'.':rest) -> readMaybe (takeWhile isDigit rest)
         _ -> Nothing
+
+-- Extract LaTeX text from "l.NNN text..." pattern
+extractLatexText :: String -> String
+extractLatexText line =
+    case dropWhile (/= 'l') line of
+        ('l':'.':rest) ->
+            let afterNum = dropWhile isDigit rest
+            in case afterNum of
+                (' ':text) -> text
+                _ -> ""
+        _ -> ""
 
 -- Build concordance map for quick lookup
 buildConcordanceMap :: String -> String -> Map.Map Int Concordance.ErrorLines
