@@ -549,7 +549,14 @@ filterLatexLogWithUrls logContent latexSource failedImages =
             ]
         cleanedLines = filter (not . isBoilerplateLine) logLines
         -- Patterns that indicate actual errors or important messages
-        isErrorLine line = any (`isInfixOf` line)
+        -- Check if line starts with "l.NNN" (line number indicator) after optional whitespace
+        startsWithLineNumber line =
+            let trimmed = dropWhile isSpace line
+            in case trimmed of
+                ('l':'.':c:_) -> isDigit c  -- "l." followed by digit
+                _ -> False
+        -- Check for other error patterns
+        isErrorLine line = startsWithLineNumber line || any (`isInfixOf` line)
             [ "! LaTeX Error:"
             , "! Emergency stop"
             , "! Undefined control sequence"
@@ -568,7 +575,6 @@ filterLatexLogWithUrls logContent latexSource failedImages =
             , "Fatal error"
             , "Error:"
             , "Warning:"
-            , "l." -- Line number indicators for errors
             , "..." -- Context lines
             , "<*>"
             ]
