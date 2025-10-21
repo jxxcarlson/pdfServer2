@@ -22,6 +22,7 @@ import Pdf (create, createWithErrorPdf, createWithFailedImages, createWithFilter
 import Tar
 import Document (Document, prepareData, docId)
 import Image (CFImage,prepareCFImage,requestCFToken, updateCFImage, uploadTheImage, getFilenameFromImage)
+import Tikz (TikzRequest, TikzResponse(..), convertTikzToPng)
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Text.Lazy.Encoding as TLE
 import qualified Data.List.Utils as U
@@ -31,16 +32,27 @@ main = scotty 3000 $ do
     middleware defaultMiddlewares
     middleware logStdoutDev 
 
+    post "/tikz2png" $ do
+        tikzReq <- jsonData :: ActionM TikzRequest
+        result <- liftIO $ convertTikzToPng tikzReq
+        case result of
+            TikzSuccess _ _ -> do
+                status status200
+                json result
+            TikzError _ _ -> do
+                status status400
+                json result
+
     post "/image" $ do
         image <- jsonData :: ActionM CFImage
         liftIO $ prepareCFImage image
         cfImageUploadUrl <- liftIO $ requestCFToken
         let cfImageUploadUrl' = U.replace "\"" "" cfImageUploadUrl
         let filename = getFilenameFromImage image
-        -- OK TO HERE: 
+        -- OK TO HERE:
         -- text $ pack cfImageUploadUrl'
         cfUploadedImageResponse <- liftIO $ uploadTheImage cfImageUploadUrl' filename
-        -- text $ blToText $ encode updatedImage 
+        -- text $ blToText $ encode updatedImage
         text $ pack cfUploadedImageResponse
 
     post "/json" $ do

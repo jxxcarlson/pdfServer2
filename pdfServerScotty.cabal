@@ -3,8 +3,6 @@ cabal-version: 1.12
 -- This file has been generated from package.yaml by hpack version 0.37.0.
 --
 -- see: https://github.com/sol/hpack
---
--- hash: ed1af7ba557d33cb4a46c9d47a1e1f5fc3f13537836fa7c489a4adfb386af885
 
 name:           pdfServerScotty
 version:        0.1.0.0
@@ -32,6 +30,7 @@ library
       Image
       Pdf
       Tar
+      Tikz
   other-modules:
       Paths_pdfServerScotty
   hs-source-dirs:
@@ -70,6 +69,7 @@ executable pdfServerScotty-exe
     , aeson
     , base >=4.7 && <5
     , bytestring
+    , containers
     , directory
     , filepath
     , http-client
@@ -100,6 +100,7 @@ test-suite pdfServerScotty-test
     , aeson
     , base >=4.7 && <5
     , bytestring
+    , containers
     , directory
     , filepath
     , http-client
