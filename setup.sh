@@ -1,1 +1,1 @@
-mkdir image inbox outbox package
+mkdir image inbox outbox package cf-image
