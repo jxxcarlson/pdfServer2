@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # tikz2png.sh - Convert TikZ code to PNG
-# Usage: ./tikz2png.sh "tikz code" [output.png] [dpi]
+# Usage: ./tikz2png.sh "tikz code" [output.png] [dpi] [preamble]
 #   or:  ./tikz2png.sh -f input.tikz [output.png] [dpi]
 
 set -e  # Exit on error
@@ -10,6 +10,7 @@ set -e  # Exit on error
 DPI=300
 OUTPUT=""
 TIKZ_CODE=""
+PREAMBLE=""
 FROM_FILE=false
 
 # Parse arguments
@@ -28,7 +29,7 @@ fi
 
 # Check if TikZ code is provided
 if [ -z "$TIKZ_CODE" ]; then
-    echo "Usage: $0 \"tikz code\" [output.png] [dpi]"
+    echo "Usage: $0 \"tikz code\" [output.png] [dpi] [preamble]"
     echo "   or: $0 -f input.tikz [output.png] [dpi]"
     echo ""
     echo "Examples:"
@@ -37,12 +38,15 @@ if [ -z "$TIKZ_CODE" ]; then
     exit 1
 fi
 
-# Parse optional output filename and DPI
+# Parse optional output filename, DPI, and preamble
 if [ -n "$1" ]; then
     OUTPUT="$1"
 fi
 if [ -n "$2" ]; then
     DPI="$2"
+fi
+if [ -n "$3" ]; then
+    PREAMBLE="$3"
 fi
 
 # Create temporary directory
@@ -58,6 +62,7 @@ cat > "$TMPDIR/figure.tex" <<EOF
 \usepackage{tikz-3dplot}
 \usetikzlibrary{calc,3d,backgrounds}
 \tdplotsetmaincoords{70}{110}
+$PREAMBLE
 \begin{document}
 $TIKZ_CODE
 \end{document}

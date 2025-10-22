@@ -17,8 +17,9 @@ import qualified Data.ByteString.Lazy.Char8 as BL
 
 -- Request data type
 data TikzRequest = TikzRequest
-    { name    :: Text
-    , content :: Text
+    { name     :: Text
+    , content  :: Text
+    , preamble :: Maybe Text
     } deriving Show
 
 -- Response data type
@@ -36,7 +37,8 @@ instance FromJSON TikzRequest where
     parseJSON = withObject "TikzRequest" $ \o -> do
         name <- o .: "name"
         content <- o .: "content"
-        return $ TikzRequest name content
+        preamble <- o .:? "preamble"
+        return $ TikzRequest name content preamble
 
 -- ToJSON instance for TikzResponse
 instance ToJSON TikzResponse where
@@ -70,8 +72,9 @@ instance FromJSON CFImageUploadResponse where
 
 -- Convert TikZ code to PNG using the tikz2png.sh script and upload to Cloudflare
 convertTikzToPng :: TikzRequest -> IO TikzResponse
-convertTikzToPng (TikzRequest name tikzContent) = do
+convertTikzToPng (TikzRequest name tikzContent maybePreamble) = do
     let tikzCode = unpack tikzContent
+        preambleCode = maybe "" unpack maybePreamble
         fileName = unpack name
         -- Generate output filename based on input name (replace .json with .png)
         outputName = if ".json" `elem` words fileName
@@ -83,9 +86,11 @@ convertTikzToPng (TikzRequest name tikzContent) = do
     let outputPath = pwd </> "outbox" </> outputName
         scriptPath = pwd </> "tikz2png" </> "tikz2png.sh"
         cfImagePath = pwd </> "cf-image" </> outputName
+        -- Pass preamble as 4th argument if present
+        scriptArgs = [tikzCode, outputPath, "300", preambleCode]
 
     -- Call tikz2png.sh script
-    result <- try (readProcessWithExitCode scriptPath [tikzCode, outputPath, "300"] "") :: IO (Either SomeException (ExitCode, String, String))
+    result <- try (readProcessWithExitCode scriptPath scriptArgs "") :: IO (Either SomeException (ExitCode, String, String))
 
     case result of
         Left ex ->
