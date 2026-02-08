@@ -50,12 +50,16 @@ my DigitalOcean "rose" box in `./pdfServer`
 
 **To update the server:**
 
-- `git pull` if need be
-- `stack build`
-- `stack ghc app/Main.hs, mv app/Main pdfServer`
-- `reboot`
+  pkill pdfServer
+  cd ~/pdfServer/pdfServer2
+  git pull if need be
+  stack build
+  stack ghc app/Main.hs && mv app/Main ../pdfServer
+  /root/pdfServer/pdfServer &
+
+  Last line: you can also reboot
 
 ## Haskell notes
- 
+
 - `stack install MissingH` is needed
 - `hoogle`
