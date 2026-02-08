@@ -105,7 +105,7 @@ main = scotty 3000 $ do
         file ("outbox/" ++ (unpack docId) )
 
     get "/hello" $ do
-        html $ mconcat ["Yes, I am still here\n"]
+        html $ mconcat ["Yes, I am still here (c2f9a74)\n"]
 
     post "/hello" $ do
        text "Yes, I am still here\n"
