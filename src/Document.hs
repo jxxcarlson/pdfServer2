@@ -8,11 +8,12 @@ import Control.Applicative
 import System.Process
 import Data.List.Split
 import Data.List.Utils (replace)
-import Data.List (isInfixOf)
+import Data.List (isInfixOf, isPrefixOf)
 import GHC.IO.Exception
 import System.Directory (getCurrentDirectory, doesFileExist, getFileSize)
 import System.Exit (ExitCode(..))
 import Control.Exception (catch, SomeException)
+import Data.Char (isAlphaNum)
 
 -- Define the Article constructor
 -- e.g. Article 12 "some title" "some body text"
@@ -81,14 +82,94 @@ writeTeXSourceFile doc failedImages = do
     pwd <- getCurrentDirectory
     let texFilename = "inbox/" ++ (unpack $ docId doc)
         contents = unpack $ content doc
+    -- Extract image URLs from \includegraphics commands, download them, and replace URLs with local filenames
+    contentsWithLocalImages <- downloadAndReplaceImageUrls contents
+    let -- Also replace any URLs from the urlList (if provided)
+        contentsWithUrlList = replaceImageUrls contentsWithLocalImages (urlList doc)
         -- Add graphics path after documentclass if graphicx is used
         -- Use absolute path to ensure images are found
-        contentsWithPath = if "\\usepackage{graphicx}" `isInfixOf` contents
-                           then replace "\\usepackage{graphicx}" ("\\usepackage{graphicx}\n\\graphicspath{{" ++ pwd ++ "/image/}}") contents
-                           else contents
+        contentsWithPath = if "\\usepackage{graphicx}" `isInfixOf` contentsWithUrlList
+                           then replace "\\usepackage{graphicx}" ("\\usepackage{graphicx}\n\\graphicspath{{" ++ pwd ++ "/image/}}") contentsWithUrlList
+                           else contentsWithUrlList
         -- Replace failed images with placeholder text
         contentsWithPlaceholders = replaceFailedImages contentsWithPath failedImages
     writeFile texFilename contentsWithPlaceholders
+
+-- Extract http/https URLs from \includegraphics{...} commands in the content
+extractImageUrls :: String -> [String]
+extractImageUrls [] = []
+extractImageUrls content =
+    case breakOnIncludegraphics content of
+        Nothing -> []
+        Just rest ->
+            -- rest starts just after the '{' of \includegraphics...{
+            let (urlStr, remaining) = span (/= '}') rest
+            in if "http" `isPrefixOf` urlStr
+               then urlStr : extractImageUrls remaining
+               else extractImageUrls remaining
+
+-- Find the next \includegraphics{...} or \includegraphics[...]{...} and return the content after '{'
+breakOnIncludegraphics :: String -> Maybe String
+breakOnIncludegraphics [] = Nothing
+breakOnIncludegraphics s@('\\':'i':'n':'c':'l':'u':'d':'e':'g':'r':'a':'p':'h':'i':'c':'s':rest) =
+    case rest of
+        ('{':after) -> Just after
+        ('[':after) -> -- skip over options to find the '{'
+            case dropWhile (/= ']') after of
+                (']':'{':after2) -> Just after2
+                _ -> breakOnIncludegraphics (drop 1 s)
+        _ -> breakOnIncludegraphics (drop 1 s)
+breakOnIncludegraphics (_:rest) = breakOnIncludegraphics rest
+
+-- Generate a local filename from a URL (hash-like, using last path segments)
+urlToFilename :: String -> Int -> String
+urlToFilename url idx =
+    let -- Take the last meaningful part of the URL path
+        parts = splitOn "/" url
+        meaningful = filter (not . null) parts
+        namePart = if length meaningful >= 2
+                   then meaningful !! (length meaningful - 2)  -- second to last segment
+                   else "image"
+        -- Sanitize: keep only alphanumeric and hyphens
+        sanitized = filter (\c -> isAlphaNum c || c == '-') namePart
+        safeName = if null sanitized then "image" else take 40 sanitized
+    in safeName ++ "-" ++ show idx ++ ".png"
+
+-- Download all image URLs found in \includegraphics commands and replace them with local filenames
+downloadAndReplaceImageUrls :: String -> IO String
+downloadAndReplaceImageUrls content = do
+    let urls = extractImageUrls content
+    if null urls then return content
+    else do
+        putStrLn $ "Found " ++ show (length urls) ++ " image URL(s) in \\includegraphics commands"
+        -- Download each URL and build replacement list
+        replacements <- mapM (\(idx, imageUrl) -> do
+            let localName = urlToFilename imageUrl idx
+            putStrLn $ "Downloading: " ++ imageUrl ++ " -> image/" ++ localName
+            exitCode <- system ("curl -s -o image/" ++ localName ++ " \"" ++ imageUrl ++ "\"")
+            case exitCode of
+                ExitSuccess -> do
+                    valid <- validateImage ("image/" ++ localName)
+                    if valid then do
+                        putStrLn $ "  OK: " ++ localName
+                        return (imageUrl, localName)
+                    else do
+                        putStrLn $ "  WARN: Downloaded file too small, keeping URL"
+                        return (imageUrl, imageUrl)  -- no replacement
+                _ -> do
+                    putStrLn $ "  WARN: Download failed, keeping URL"
+                    return (imageUrl, imageUrl)  -- no replacement
+            ) (zip [1..] urls)
+        -- Apply all replacements
+        let result = foldl (\c (old, new) -> replace old new c) content replacements
+        return result
+
+-- Replace each image URL in the content with its local filename
+replaceImageUrls :: String -> [ImageElement] -> String
+replaceImageUrls content [] = content
+replaceImageUrls content (img:imgs) =
+    let replaced = replace (url img) (filename img) content
+    in replaceImageUrls replaced imgs
 
 -- Replace references to failed images with a placeholder
 replaceFailedImages :: String -> [ImageElement] -> String
