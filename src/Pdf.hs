@@ -13,7 +13,8 @@ import Data.List.Utils (replace)
 import Data.List (isInfixOf, isPrefixOf, groupBy, sortBy, intersperse)
 import Data.Ord (comparing)
 import Data.Maybe (mapMaybe, listToMaybe)
-import Document (Document, ImageElement(..), docId, urlList)
+import Document (Document, ImageElement(..), docId, urlList, content)
+import Control.Monad (when)
 import GHC.Generics
 import Data.Aeson
 import qualified Data.ByteString.Lazy as BL
@@ -69,7 +70,8 @@ create document =
         system "mkdir -p save 2>/dev/null || true" >>= \_ -> return ()
         system ("cp inbox/" ++ fileName ++ " save/" ++ fileName ++ " 2>/dev/null || true") >>= \_ -> return ()
 
-        exitCode <- createPdf_ fileName
+        let needsIndex = "\\usepackage{imakeidx}" `isInfixOf` (unpack $ content document)
+        exitCode <- createPdf_ fileName needsIndex
         putStrLn $ "create: XeLaTeX exit code: " ++ show exitCode
 
         -- Check for timeout
@@ -340,25 +342,32 @@ createWithFailedImages document failedImages = do
                                 system $ "cp outbox/" ++ errorPdfFileName ++ " outbox/" ++ pdfFileName ++ " 2>/dev/null"
                                 return (pack pdfFileName)
 
-createPdf_ :: String -> IO ExitCode
-createPdf_ fileName =
+createPdf_ :: String -> Bool -> IO ExitCode
+createPdf_ fileName needsIndex =
     let
         texFilename = "inbox/" ++ fileName
         -- Use timeout to prevent hanging (30 seconds per run)
         -- Exit code 124 means timeout occurred
         cmd = "timeout 30 xelatex -output-directory=outbox -interaction=batchmode " ++ texFilename ++ " >/dev/null 2>&1"
+        baseName = replace ".tex" "" fileName
+        makeindexCmd = "timeout 30 makeindex outbox/" ++ baseName ++ " >/dev/null 2>&1"
     in do
         -- Run xelatex first time
         exitCode1 <- system cmd
         case exitCode1 of
             ExitFailure 124 -> return (ExitFailure 124)  -- Timeout on first run, don't continue
             _ -> do
-                -- First run completed (success or error), run second time
+                -- Run makeindex if document uses imakeidx
+                when needsIndex $ do
+                    putStrLn $ "createPdf_: Running makeindex for " ++ baseName
+                    _ <- system makeindexCmd
+                    return ()
+                -- Run xelatex second time
                 exitCode2 <- system cmd
                 case exitCode2 of
                     ExitFailure 124 -> return (ExitFailure 124)  -- Timeout on second run
                     _ -> do
-                        -- Second run completed, run third time for complete TOC/references
+                        -- Third run for complete TOC/references
                         -- This is especially important for books with complex cross-references
                         exitCode3 <- system cmd
                         case exitCode3 of
