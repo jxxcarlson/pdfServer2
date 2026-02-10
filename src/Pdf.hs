@@ -53,12 +53,15 @@ instance ToJSON ErrorRecord where
     toJSON (ErrorRecord sl ll lb le lt) = object
         ["scripta-line" .= sl, "latex-line" .= ll, "latex-begin" .= lb, "latex-end" .= le, "latex-text" .= lt]
 
+cleanupOutboxJunk :: String
+cleanupOutboxJunk = "rm -f outbox/*.idx outbox/*.ilg outbox/*.ind outbox/*.out outbox/*.toc 2>/dev/null || true"
+
 create :: Document -> IO PdfResult
 create document =
     let
         fileName = unpack $ Document.docId document
         removeInputs = "rm -f inbox/*.tex image/* 2>/dev/null || true"
-        removeOuputJunk = "rm -f outbox/*.aux 2>/dev/null || true"  -- Keep .log files for error reporting
+        removeOuputJunk = "rm -f outbox/*.aux 2>/dev/null || true; " ++ cleanupOutboxJunk
         removeOldOutboxFiles = "find outbox -type f -mtime +1 -delete 2>/dev/null || true"
         pdfFileName = replace ".tex" ".pdf" fileName
         logFileName = "outbox/" ++ replace ".tex" ".log" fileName
@@ -70,6 +73,10 @@ create document =
         system "mkdir -p save 2>/dev/null || true" >>= \_ -> return ()
         system ("cp inbox/" ++ fileName ++ " save/" ++ fileName ++ " 2>/dev/null || true") >>= \_ -> return ()
 
+        -- Clean stale auxiliary files before compilation to avoid "multiply defined" errors
+        let baseName = replace ".tex" "" fileName
+        system ("rm -f outbox/" ++ baseName ++ ".aux outbox/" ++ baseName ++ ".idx outbox/" ++ baseName ++ ".ilg outbox/" ++ baseName ++ ".ind outbox/" ++ baseName ++ ".out outbox/" ++ baseName ++ ".toc 2>/dev/null || true") >>= \_ -> return ()
+
         let needsIndex = "\\usepackage{imakeidx}" `isInfixOf` (unpack $ content document)
         exitCode <- createPdf_ fileName needsIndex
         putStrLn $ "create: XeLaTeX exit code: " ++ show exitCode
@@ -79,6 +86,7 @@ create document =
             ExitFailure 124 -> do
                 putStrLn $ "create: XeLaTeX timed out after 30 seconds"
                 system removeInputs >>= \_ -> return ()
+                system removeOuputJunk >>= \_ -> return ()
                 system removeOldOutboxFiles >>= \_ -> return ()
                 return $ PdfError (pack "LaTeX compilation timed out") (pack "The document took too long to compile (>30 seconds). This usually happens with:\n- Infinite loops in LaTeX macros\n- Extremely large documents\n- Missing fonts causing font substitution loops\n- Malformed TikZ or other graphics code\n- Recursive includes")
             _ -> do
@@ -107,6 +115,7 @@ create document =
                                 putStrLn $ "create: PDF is too small (" ++ show fileSize ++ " bytes), treating as error"
                                 logContent <- readLogFile logFileName
                                 system removeInputs >>= \_ -> return ()
+                                system removeOuputJunk >>= \_ -> return ()
                                 system removeOldOutboxFiles >>= \_ -> return ()
                                 return $ PdfError (pack "PDF generation produced invalid output") (pack logContent)
                         else do
@@ -114,7 +123,7 @@ create document =
                             putStrLn $ "create: PDF creation failed - no output file"
                             logContent <- readLogFile logFileName
                             system removeInputs >>= \_ -> return ()
-                            -- Keep log files for failed compilations
+                            system removeOuputJunk >>= \_ -> return ()
                             system removeOldOutboxFiles >>= \_ -> return ()
                             return $ PdfError (pack $ "LaTeX compilation failed - no PDF generated") (pack logContent)
                     ExitFailure _ -> do
@@ -133,8 +142,8 @@ create document =
                                 errorJsonFileName = replace ".pdf" "-errors.json" pdfFileName
                             errorRecords <- generateErrorReportText fileName errorTextFileName errorJsonFileName logContent allImages
 
-                            -- JC TODO: temporarily disable cleanup to keep artifacts for debugging
                             system removeInputs >>= \_ -> return ()
+                            system removeOuputJunk >>= \_ -> return ()
                             system removeOldOutboxFiles >>= \_ -> return ()
 
                             -- Return the PDF, error report text file, and JSON data
@@ -143,6 +152,7 @@ create document =
                         else do
                             putStrLn $ "create: No PDF file was created"
                             system removeInputs >>= \_ -> return ()
+                            system removeOuputJunk >>= \_ -> return ()
                             system removeOldOutboxFiles >>= \_ -> return ()
                             return $ PdfError (pack "LaTeX compilation failed - no PDF generated") (pack logContent)
 
@@ -178,6 +188,7 @@ createWithFailedImages document failedImages = do
         writeFile errorTexFileName simpleErrorContent
         system ("xelatex -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1") >>= \_ -> return ()
         system ("rm " ++ errorTexFileName) >>= \_ -> return ()
+        system cleanupOutboxJunk >>= \_ -> return ()
         -- Return Left to indicate we handled the error
         return (Left $ pack pdfFileName)
     case resultOrError of
@@ -281,8 +292,9 @@ createWithFailedImages document failedImages = do
                     putStrLn "createWithErrorPdf: Compiling error PDF..."
                     exitCode <- system $ "xelatex -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1"
                     putStrLn $ "createWithErrorPdf: XeLaTeX exit code for error PDF: " ++ show exitCode
-                    -- Clean up the tex file regardless of success
+                    -- Clean up the tex file and auxiliary output regardless of success
                     system ("rm -f " ++ errorTexFileName ++ " 2>/dev/null") >>= \_ -> return ()
+                    system cleanupOutboxJunk >>= \_ -> return ()
                     case exitCode of
                         ExitSuccess -> do
                             putStrLn "createWithErrorPdf: Error PDF created successfully"
@@ -323,6 +335,7 @@ createWithFailedImages document failedImages = do
                             putStrLn "createWithErrorPdf: Compiling fallback PDF..."
                             exitCode2 <- system $ "xelatex -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1"
                             system ("rm -f " ++ errorTexFileName ++ " 2>/dev/null") >>= \_ -> return ()
+                            system cleanupOutboxJunk >>= \_ -> return ()
                             putStrLn $ "createWithErrorPdf: Fallback compilation exit code: " ++ show exitCode2
                             -- Even if fallback fails, we need to return something
                             -- Create a minimal PDF using pdflatex which is more robust
@@ -332,6 +345,7 @@ createWithFailedImages document failedImages = do
                                 writeFile minimalTexFileName minimalContent
                                 system $ "pdflatex -output-directory=outbox -interaction=nonstopmode " ++ minimalTexFileName ++ " >/dev/null 2>&1"
                                 system ("rm -f " ++ minimalTexFileName ++ " 2>/dev/null") >>= \_ -> return ()
+                                system cleanupOutboxJunk >>= \_ -> return ()
                                 -- Copy the minimal PDF to the expected filename
                                 let minimalPdfFileName = replace ".tex" ".pdf" ("minimal-" ++ fileName)
                                 system $ "cp outbox/" ++ minimalPdfFileName ++ " outbox/" ++ pdfFileName ++ " 2>/dev/null"
@@ -669,6 +683,7 @@ createWithFilteredErrors document failedImages = do
         writeFile errorTexFileName simpleErrorContent
         system ("xelatex -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1") >>= \_ -> return ()
         system ("rm " ++ errorTexFileName) >>= \_ -> return ()
+        system cleanupOutboxJunk >>= \_ -> return ()
         -- Return Left to indicate we handled the error
         return (Left $ pack pdfFileName)
     case resultOrError of
@@ -778,8 +793,9 @@ createWithFilteredErrors document failedImages = do
                     putStrLn "createWithFilteredErrors: Compiling error PDF..."
                     exitCode <- system $ "xelatex -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1"
                     putStrLn $ "createWithFilteredErrors: XeLaTeX exit code for error PDF: " ++ show exitCode
-                    -- Clean up the tex file
+                    -- Clean up the tex file and auxiliary output
                     system ("rm -f " ++ errorTexFileName ++ " 2>/dev/null") >>= \_ -> return ()
+                    system cleanupOutboxJunk >>= \_ -> return ()
                     case exitCode of
                         ExitSuccess -> do
                             putStrLn "createWithFilteredErrors: Error PDF created successfully"
@@ -797,6 +813,7 @@ createWithFilteredErrors document failedImages = do
                             writeFile errorTexFileName fallbackContent
                             system $ "pdflatex -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1"
                             system ("rm -f " ++ errorTexFileName ++ " 2>/dev/null") >>= \_ -> return ()
+                            system cleanupOutboxJunk >>= \_ -> return ()
                             let minimalPdfFileName = replace ".tex" ".pdf" ("error-" ++ fileName)
                             system $ "cp outbox/" ++ minimalPdfFileName ++ " outbox/" ++ pdfFileName ++ " 2>/dev/null"
                             return (pack pdfFileName)
