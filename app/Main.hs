@@ -68,8 +68,10 @@ main = scotty 3000 $ do
                 status status200
                 json result
             PdfError _ _ -> do
+                -- Generate filtered error PDF instead of returning raw log
+                pdfFileName <- liftIO $ Pdf.createWithFilteredErrors document failedImages
                 status status400
-                json result
+                json $ object ["pdf" .= (Nothing :: Maybe Text), "errorReport" .= pdfFileName, "hasErrors" .= True, "pdfFailed" .= True]
 
     post "/pdf" $ do
         document <- jsonData :: ActionM Document
@@ -87,7 +89,8 @@ main = scotty 3000 $ do
                 -- Generate error PDF for complete failures
                 pdfFileName <- liftIO $ Pdf.createWithFilteredErrors document failedImages
                 -- Return JSON indicating complete failure
-                json $ object ["errorReport" .= pdfFileName, "hasErrors" .= True, "pdfFailed" .= True]
+                -- Include "pdf" as null so the frontend decoder succeeds
+                json $ object ["pdf" .= (Nothing :: Maybe Text), "errorReport" .= pdfFileName, "hasErrors" .= True, "pdfFailed" .= True]
 
     post "/tar" $ do
         document <- jsonData :: ActionM Document
