@@ -338,12 +338,12 @@ createWithFailedImages document failedImages = do
                             system cleanupOutboxJunk >>= \_ -> return ()
                             putStrLn $ "createWithErrorPdf: Fallback compilation exit code: " ++ show exitCode2
                             -- Even if fallback fails, we need to return something
-                            -- Create a minimal PDF using pdflatex which is more robust
+                            -- Create a minimal PDF using xelatex which is more robust
                             if exitCode2 /= ExitSuccess then do
                                 let minimalTexFileName = "inbox/minimal-" ++ fileName
                                     minimalContent = "\\documentclass{article}\n\\begin{document}\nError: Failed to process document\n\\end{document}"
                                 writeFile minimalTexFileName minimalContent
-                                system $ "pdflatex -output-directory=outbox -interaction=nonstopmode " ++ minimalTexFileName ++ " >/dev/null 2>&1"
+                                system $ "xelatex -output-directory=outbox -interaction=nonstopmode " ++ minimalTexFileName ++ " >/dev/null 2>&1"
                                 system ("rm -f " ++ minimalTexFileName ++ " 2>/dev/null") >>= \_ -> return ()
                                 system cleanupOutboxJunk >>= \_ -> return ()
                                 -- Copy the minimal PDF to the expected filename
@@ -569,7 +569,14 @@ filterLatexLogWithUrls logContent latexSource failedImages =
             , "Using"
             , "Overwriting"
             , "********"
+            , "LaTeX info:"
+            , "chemgreek info:"
+            , "\\l__mhchem_"
+            , "\\__mhchem_"
+            , "Defining command"
+            , "Activating mapping"
             ]
+            || all (== '.') line
         cleanedLines = filter (not . isBoilerplateLine) logLines
         -- Patterns that indicate actual errors or important messages
         -- Check if line starts with "l.NNN" (line number indicator) after optional whitespace
@@ -811,7 +818,7 @@ createWithFilteredErrors document failedImages = do
                                                 "LaTeX compilation failed. Please check your document for errors.\n" ++
                                                 "\\end{document}"
                             writeFile errorTexFileName fallbackContent
-                            system $ "pdflatex -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1"
+                            system $ "xelatex -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1"
                             system ("rm -f " ++ errorTexFileName ++ " 2>/dev/null") >>= \_ -> return ()
                             system cleanupOutboxJunk >>= \_ -> return ()
                             let minimalPdfFileName = replace ".tex" ".pdf" ("error-" ++ fileName)
