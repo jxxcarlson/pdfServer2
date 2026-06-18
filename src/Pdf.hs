@@ -14,7 +14,6 @@ import Data.List (isInfixOf, isPrefixOf, groupBy, sortBy, intersperse)
 import Data.Ord (comparing)
 import Data.Maybe (mapMaybe, listToMaybe)
 import Document (Document, ImageElement(..), docId, urlList, content)
-import Control.Monad (when)
 import GHC.Generics
 import Data.Aeson
 import qualified Data.ByteString.Lazy as BL
@@ -53,6 +52,12 @@ instance ToJSON ErrorRecord where
     toJSON (ErrorRecord sl ll lb le lt) = object
         ["scripta-line" .= sl, "latex-line" .= ll, "latex-begin" .= lb, "latex-end" .= le, "latex-text" .= lt]
 
+-- The LaTeX engine used for the main compile path. xelatex is required because
+-- Scripta documents routinely contain Unicode math (→ ℕ ≡ λ ∀ ⊥ …) that pdflatex
+-- cannot typeset; keep this as a single switch point.
+latexEngine :: String
+latexEngine = "xelatex"
+
 cleanupOutboxJunk :: String
 cleanupOutboxJunk = "rm -f outbox/*.idx outbox/*.ilg outbox/*.ind outbox/*.out outbox/*.toc 2>/dev/null || true"
 
@@ -77,7 +82,12 @@ create document =
         let baseName = replace ".tex" "" fileName
         system ("rm -f outbox/" ++ baseName ++ ".aux outbox/" ++ baseName ++ ".idx outbox/" ++ baseName ++ ".ilg outbox/" ++ baseName ++ ".ind outbox/" ++ baseName ++ ".out outbox/" ++ baseName ++ ".toc 2>/dev/null || true") >>= \_ -> return ()
 
-        let needsIndex = "\\usepackage{imakeidx}" `isInfixOf` (unpack $ content document)
+        -- Run makeindex only when the document actually builds an index. The
+        -- Scripta preamble always loads imakeidx, so testing for the package would
+        -- force the makeindex step (and an extra typeset pass) on every document,
+        -- even those with no index. Test for real index usage instead.
+        let docContent = unpack $ content document
+        let needsIndex = ("\\printindex" `isInfixOf` docContent) || ("\\index{" `isInfixOf` docContent)
         exitCode <- createPdf_ fileName needsIndex
         putStrLn $ "create: XeLaTeX exit code: " ++ show exitCode
 
@@ -356,37 +366,60 @@ createWithFailedImages document failedImages = do
                                 system $ "cp outbox/" ++ errorPdfFileName ++ " outbox/" ++ pdfFileName ++ " 2>/dev/null"
                                 return (pack pdfFileName)
 
+-- LaTeX writes a "Rerun ..." message to the .log when another pass is needed
+-- (cross-references, TOC, hyperref outlines/bookmarks, index, etc.). We grep the
+-- log rather than read it in Haskell to stay robust against odd log encodings.
+logRequestsRerun :: String -> IO Bool
+logRequestsRerun logPath = do
+    ec <- system $ "grep -qi 'rerun' " ++ logPath ++ " 2>/dev/null"
+    return (ec == ExitSuccess)
+
 createPdf_ :: String -> Bool -> IO ExitCode
 createPdf_ fileName needsIndex =
     let
         texFilename = "inbox/" ++ fileName
         -- Use timeout to prevent hanging (30 seconds per run)
         -- Exit code 124 means timeout occurred
-        cmd = "timeout 30 xelatex -output-directory=outbox -interaction=batchmode " ++ texFilename ++ " >/dev/null 2>&1"
+        cmd = "timeout 30 " ++ latexEngine ++ " -output-directory=outbox -interaction=batchmode " ++ texFilename ++ " >/dev/null 2>&1"
         baseName = replace ".tex" "" fileName
+        logFile = "outbox/" ++ baseName ++ ".log"
         makeindexCmd = "timeout 30 makeindex outbox/" ++ baseName ++ " >/dev/null 2>&1"
+        -- Hard cap on total passes (protects against pathological rerun loops).
+        maxPasses = 3 :: Int
+
+        -- After the mandatory first pass, run additional passes only while the
+        -- log keeps asking for one, up to maxPasses total. Most short documents
+        -- need just one pass; only TOC/index/cross-reference docs need more.
+        rerunWhileNeeded :: Int -> ExitCode -> IO ExitCode
+        rerunWhileNeeded passesSoFar lastExit
+            | passesSoFar >= maxPasses = return lastExit
+            | otherwise = do
+                needed <- logRequestsRerun logFile
+                if not needed
+                    then return lastExit
+                    else do
+                        putStrLn $ "createPdf_: log requests rerun; running pass " ++ show (passesSoFar + 1)
+                        ec <- system cmd
+                        case ec of
+                            ExitFailure 124 -> return (ExitFailure 124)
+                            _ -> rerunWhileNeeded (passesSoFar + 1) ec
     in do
-        -- Run xelatex first time
+        -- Pass 1 (always).
         exitCode1 <- system cmd
         case exitCode1 of
             ExitFailure 124 -> return (ExitFailure 124)  -- Timeout on first run, don't continue
-            _ -> do
-                -- Run makeindex if document uses imakeidx
-                when needsIndex $ do
-                    putStrLn $ "createPdf_: Running makeindex for " ++ baseName
-                    _ <- system makeindexCmd
-                    return ()
-                -- Run xelatex second time
-                exitCode2 <- system cmd
-                case exitCode2 of
-                    ExitFailure 124 -> return (ExitFailure 124)  -- Timeout on second run
-                    _ -> do
-                        -- Third run for complete TOC/references
-                        -- This is especially important for books with complex cross-references
-                        exitCode3 <- system cmd
-                        case exitCode3 of
-                            ExitFailure 124 -> return (ExitFailure 124)  -- Timeout on third run
-                            _ -> return exitCode3  -- Return third run's exit code
+            _ ->
+                if needsIndex
+                    then do
+                        -- Index documents: build the index, then run one mandatory
+                        -- pass to typeset it, then continue only if still requested.
+                        putStrLn $ "createPdf_: Running makeindex for " ++ baseName
+                        _ <- system makeindexCmd
+                        exitCode2 <- system cmd
+                        case exitCode2 of
+                            ExitFailure 124 -> return (ExitFailure 124)
+                            _ -> rerunWhileNeeded 2 exitCode2
+                    else rerunWhileNeeded 1 exitCode1
 
 -- HELPERS
 
