@@ -68,9 +68,14 @@ $TIKZ_CODE
 \end{document}
 EOF
 
-# Compile to PDF
+# Compile to PDF.
+# - `timeout 60` kills pdflatex if a malformed TikZ figure sends it into an
+#   infinite loop (these otherwise pile up forever and saturate the CPU).
+# - `< /dev/null` stops it blocking on an interactive error prompt.
+# - `|| true` keeps `set -e` from aborting here so the figure.pdf check below
+#   produces the proper error response on failure or timeout.
 cd "$TMPDIR"
-pdflatex -interaction=nonstopmode figure.tex > /dev/null 2>&1
+timeout 60 pdflatex -interaction=nonstopmode figure.tex < /dev/null > /dev/null 2>&1 || true
 
 if [ ! -f figure.pdf ]; then
     echo "Error: PDF compilation failed" >&2
