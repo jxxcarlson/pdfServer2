@@ -9,6 +9,7 @@ pdfServer
 .idea/
 inbox/
 outbox/
+pdfcache/
 image/
 refrigerator/
 experiments/

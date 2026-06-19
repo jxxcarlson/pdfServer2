@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Document (Document, ImageElement(..), fixGraphicsPath, docId, content, prepareData, urlList) where
+module Document (Document, ImageElement(..), fixGraphicsPath, docId, content, prepareData, urlList, packageList) where
 import Data.Text.Lazy ( unpack, Text, pack )
 import Data.Text.Lazy.Encoding
 import Data.Aeson

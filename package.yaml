@@ -44,6 +44,8 @@ dependencies:
 
 library:
   source-dirs: src
+  dependencies:
+  - crypton
 
 executables:
   pdfServerScotty-exe:
@@ -66,3 +68,4 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - pdfServerScotty
+    - HUnit

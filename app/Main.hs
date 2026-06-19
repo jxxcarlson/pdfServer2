@@ -21,6 +21,7 @@ import Data.Text.Lazy (pack, unpack, replace, toLower, Text)
 import Pdf (create, createWithErrorPdf, createWithFailedImages, createWithFilteredErrors, PdfResult(..))
 import Tar
 import Document (Document, prepareData, docId)
+import qualified Cache
 import Image (CFImage,prepareCFImage,requestCFToken, updateCFImage, uploadTheImage, getFilenameFromImage)
 import Tikz (TikzRequest, TikzResponse(..), convertTikzToPng)
 import qualified Data.ByteString.Lazy.Char8 as BL
@@ -75,22 +76,24 @@ main = scotty 3000 $ do
 
     post "/pdf" $ do
         document <- jsonData :: ActionM Document
-        failedImages <- liftIO $ Document.prepareData document
-        -- Get the full result to check if we have both PDFs
-        result <- liftIO $ Pdf.create document
-        case result of
-            PdfSuccess fname ->
-                -- Return JSON for consistency
-                json $ object ["pdf" .= fname, "hasErrors" .= False]
-            PdfWithErrors pdfFile errorPdfFile errorJsonFile _ -> do
-                -- Return JSON with all three filenames when we have errors
-                json $ object ["pdf" .= pdfFile, "errorReport" .= errorPdfFile, "errorJson" .= errorJsonFile, "hasErrors" .= True]
-            PdfError _ _ -> do
-                -- Generate error PDF for complete failures
-                pdfFileName <- liftIO $ Pdf.createWithFilteredErrors document failedImages
-                -- Return JSON indicating complete failure
-                -- Include "pdf" as null so the frontend decoder succeeds
-                json $ object ["pdf" .= (Nothing :: Maybe Text), "errorReport" .= pdfFileName, "hasErrors" .= True, "pdfFailed" .= True]
+        let hash = Cache.contentHash document
+        let pdfName = unpack (replace ".tex" ".pdf" (docId document))
+        hit <- liftIO $ Cache.cacheLookup hash ("outbox/" ++ pdfName)
+        if hit
+            then json $ object ["pdf" .= pdfName, "hasErrors" .= False]
+            else do
+                liftIO Cache.pruneCache
+                failedImages <- liftIO $ Document.prepareData document
+                result <- liftIO $ Pdf.create document
+                case result of
+                    PdfSuccess fname -> do
+                        liftIO $ Cache.cacheStore hash ("outbox/" ++ unpack fname)
+                        json $ object ["pdf" .= fname, "hasErrors" .= False]
+                    PdfWithErrors pdfFile errorPdfFile errorJsonFile _ ->
+                        json $ object ["pdf" .= pdfFile, "errorReport" .= errorPdfFile, "errorJson" .= errorJsonFile, "hasErrors" .= True]
+                    PdfError _ _ -> do
+                        pdfFileName <- liftIO $ Pdf.createWithFilteredErrors document failedImages
+                        json $ object ["pdf" .= (Nothing :: Maybe Text), "errorReport" .= pdfFileName, "hasErrors" .= True, "pdfFailed" .= True]
 
     post "/tar" $ do
         document <- jsonData :: ActionM Document
