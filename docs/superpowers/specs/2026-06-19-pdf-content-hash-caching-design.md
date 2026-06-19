@@ -71,8 +71,10 @@ A small, unit-testable `Cache` module so `Main.hs` stays thin:
 - `cacheStore :: String -> FilePath -> IO ()` — copy a freshly-produced PDF into the
   cache under its hash.
 
-Hashing uses a library already in the dependency tree (e.g. `crypton`/`Crypto.Hash`
-or `cryptohash-sha1`; SHA-1 is acceptable for a cache key if SHA-256 is inconvenient).
+Hashing uses **SHA-256 via `crypton`'s `Crypto.Hash`**: `show (hashWith SHA256 bytes)`
+yields the hex digest directly (no separate base16 dependency). `crypton` is already in
+the resolved snapshot (it builds as a precompiled package), so this only requires adding
+`crypton` as a direct dependency in `package.yaml`.
 
 ## Error handling
 
