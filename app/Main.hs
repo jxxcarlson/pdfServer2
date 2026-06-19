@@ -95,6 +95,21 @@ main = scotty 3000 $ do
                         pdfFileName <- liftIO $ Pdf.createWithFilteredErrors document failedImages
                         json $ object ["pdf" .= (Nothing :: Maybe Text), "errorReport" .= pdfFileName, "hasErrors" .= True, "pdfFailed" .= True]
 
+    post "/tex" $ do
+        document <- jsonData :: ActionM Document
+        failedImages <- liftIO $ Document.prepareData document
+        let texFilePath = "inbox/" ++ unpack (Document.docId document)
+        texContent <- liftIO $ readFile texFilePath
+        result <- liftIO $ Pdf.create document
+        case result of
+            PdfSuccess fname ->
+                json $ object ["pdf" .= fname, "hasErrors" .= False, "tex" .= texContent]
+            PdfWithErrors pdfFile errorPdfFile errorJsonFile _ ->
+                json $ object ["pdf" .= pdfFile, "errorReport" .= errorPdfFile, "errorJson" .= errorJsonFile, "hasErrors" .= True, "tex" .= texContent]
+            PdfError _ _ -> do
+                pdfFileName <- liftIO $ Pdf.createWithFilteredErrors document failedImages
+                json $ object ["pdf" .= (Nothing :: Maybe Text), "errorReport" .= pdfFileName, "hasErrors" .= True, "pdfFailed" .= True, "tex" .= texContent]
+
     post "/tar" $ do
         document <- jsonData :: ActionM Document
         failedImages <- liftIO $ Document.prepareData document
