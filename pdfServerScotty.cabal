@@ -25,6 +25,7 @@ source-repository head
 
 library
   exposed-modules:
+      Cache
       Concordance
       Document
       Image
@@ -41,6 +42,7 @@ library
     , base >=4.7 && <5
     , bytestring
     , containers
+    , crypton
     , directory
     , filepath
     , http-client
@@ -96,7 +98,8 @@ test-suite pdfServerScotty-test
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      MissingH
+      HUnit
+    , MissingH
     , aeson
     , base >=4.7 && <5
     , bytestring
