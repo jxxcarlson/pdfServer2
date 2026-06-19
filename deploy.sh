@@ -32,6 +32,12 @@ cd "$REPO"
 echo "==> Updating source (fast-forward only)"
 git pull --ff-only
 
+echo "==> Regenerating the .cabal from package.yaml so a stale checkout can't omit modules"
+# The .cabal is hpack-generated and NOT tracked in git. Removing it forces `stack build`
+# to regenerate it from package.yaml — package.yaml is the single source of truth, so a
+# newly added module/dependency can never be missing from a fresh checkout's build.
+rm -f pdfServerScotty.cabal
+
 echo "==> Building (old server still serving; a failure here aborts before any downtime)"
 stack build
 stack install --local-bin-path .

@@ -14,3 +14,6 @@ image/
 refrigerator/
 experiments/
 .vscode/
+
+# hpack-generated; regenerated from package.yaml on build
+*.cabal
