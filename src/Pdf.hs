@@ -67,7 +67,9 @@ create document =
         fileName = unpack $ Document.docId document
         removeInputs = "rm -f inbox/*.tex image/* 2>/dev/null || true"
         removeOuputJunk = "rm -f outbox/*.aux 2>/dev/null || true; " ++ cleanupOutboxJunk
-        removeOldOutboxFiles = "find outbox -type f -mtime +1 -delete 2>/dev/null || true"
+        -- Generated PDFs are kept a day; saved copies of the LaTeX input (save/,
+        -- for looking into failed exports) a week.
+        removeOldOutboxFiles = "find outbox -type f -mtime +1 -delete 2>/dev/null || true; find save -type f -mtime +7 -delete 2>/dev/null || true"
         pdfFileName = replace ".tex" ".pdf" fileName
         logFileName = "outbox/" ++ replace ".tex" ".log" fileName
         allImages = urlList document  -- Get all images for URL mapping

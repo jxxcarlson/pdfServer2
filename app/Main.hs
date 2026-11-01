@@ -15,7 +15,8 @@ import Network.Wai.Middleware.Cors
 import Network.Wai                       (Application, Middleware)
 import Network.Wai.Middleware.AddHeaders (addHeaders)
 import Network.Wai.Middleware.RequestLogger
-import Data.Aeson (encode, object, (.=))
+import Data.Aeson (encode, object, (.=), toJSON, Value)
+import Control.Concurrent.MVar (MVar, newMVar, withMVar)
 import System.Process
 import Data.Text.Lazy (pack, unpack, replace, toLower, Text)
 import Pdf (create, createWithErrorPdf, createWithFailedImages, createWithFilteredErrors, PdfResult(..))
@@ -47,10 +48,19 @@ main = do
         [ ("shell_escape", "f"), ("openin_any", "p"), ("openout_any", "p")
         , ("TEXMFOUTPUT", pwd) ]
     port <- fromMaybe 3000 . (>>= readMaybe) <$> lookupEnv "PDFSERVER_PORT"
-    server port
+    -- One LaTeX job at a time. All jobs share inbox/, image/ and outbox/,
+    -- and each one ends with `rm -f inbox/*.tex image/*`, so two at once
+    -- deleted each other's files mid-compile. /tikz2png works in its own
+    -- temporary folder and doesn't need the lock.
+    lock <- newMVar ()
+    server lock port
 
-server :: Int -> IO ()
-server port = scotty port $ do
+-- | Run a job's file work while holding the lock.
+exclusively :: MVar () -> IO a -> ActionM a
+exclusively lock job = liftIO (withMVar lock (const job))
+
+server :: MVar () -> Int -> IO ()
+server lock port = scotty port $ do
  
     middleware defaultMiddlewares
     middleware logStdoutDev 
@@ -80,62 +90,66 @@ server port = scotty port $ do
 
     post "/json" $ do
         document <- sanitizeDocument <$> (jsonData :: ActionM Document)
-        failedImages <- liftIO $ Document.prepareData document
-        result <- liftIO $ Pdf.create document
-        case result of
-            PdfSuccess fname -> do
-                status status200
-                json result
-            PdfWithErrors _ _ _ _ -> do
+        (code, body) <- exclusively lock $ do
+            failedImages <- Document.prepareData document
+            result <- Pdf.create document
+            case result of
+                PdfSuccess _ -> return (status200, toJSON result)
                 -- Return 200 OK but with all three files in response
-                status status200
-                json result
-            PdfError _ _ -> do
-                -- Generate filtered error PDF instead of returning raw log
-                pdfFileName <- liftIO $ Pdf.createWithFilteredErrors document failedImages
-                status status400
-                json $ object ["pdf" .= (Nothing :: Maybe Text), "errorReport" .= pdfFileName, "hasErrors" .= True, "pdfFailed" .= True]
+                PdfWithErrors _ _ _ _ -> return (status200, toJSON result)
+                PdfError _ _ -> do
+                    -- Generate filtered error PDF instead of returning raw log
+                    pdfFileName <- Pdf.createWithFilteredErrors document failedImages
+                    return (status400, object ["pdf" .= (Nothing :: Maybe Text), "errorReport" .= pdfFileName, "hasErrors" .= True, "pdfFailed" .= True])
+        status code
+        json body
 
     post "/pdf" $ do
         document <- sanitizeDocument <$> (jsonData :: ActionM Document)
         let hash = Cache.contentHash document
         let pdfName = unpack (replace ".tex" ".pdf" (docId document))
-        hit <- liftIO $ Cache.cacheLookup hash ("outbox/" ++ pdfName)
-        if hit
-            then json $ object ["pdf" .= pdfName, "hasErrors" .= False]
-            else do
-                liftIO Cache.pruneCache
-                failedImages <- liftIO $ Document.prepareData document
-                result <- liftIO $ Pdf.create document
-                case result of
-                    PdfSuccess fname -> do
-                        liftIO $ Cache.cacheStore hash ("outbox/" ++ unpack fname)
-                        json $ object ["pdf" .= fname, "hasErrors" .= False]
-                    PdfWithErrors pdfFile errorPdfFile errorJsonFile _ ->
-                        json $ object ["pdf" .= pdfFile, "errorReport" .= errorPdfFile, "errorJson" .= errorJsonFile, "hasErrors" .= True]
-                    PdfError _ _ -> do
-                        pdfFileName <- liftIO $ Pdf.createWithFilteredErrors document failedImages
-                        json $ object ["pdf" .= (Nothing :: Maybe Text), "errorReport" .= pdfFileName, "hasErrors" .= True, "pdfFailed" .= True]
+        body <- exclusively lock $ do
+            hit <- Cache.cacheLookup hash ("outbox/" ++ pdfName)
+            if hit
+                then return $ object ["pdf" .= pdfName, "hasErrors" .= False]
+                else do
+                    Cache.pruneCache
+                    failedImages <- Document.prepareData document
+                    result <- Pdf.create document
+                    case result of
+                        PdfSuccess fname -> do
+                            Cache.cacheStore hash ("outbox/" ++ unpack fname)
+                            return $ object ["pdf" .= fname, "hasErrors" .= False]
+                        PdfWithErrors pdfFile errorPdfFile errorJsonFile _ ->
+                            return $ object ["pdf" .= pdfFile, "errorReport" .= errorPdfFile, "errorJson" .= errorJsonFile, "hasErrors" .= True]
+                        PdfError _ _ -> do
+                            pdfFileName <- Pdf.createWithFilteredErrors document failedImages
+                            return $ object ["pdf" .= (Nothing :: Maybe Text), "errorReport" .= pdfFileName, "hasErrors" .= True, "pdfFailed" .= True]
+        json body
 
     post "/tex" $ do
         document <- sanitizeDocument <$> (jsonData :: ActionM Document)
-        failedImages <- liftIO $ Document.prepareData document
-        let texFilePath = "inbox/" ++ unpack (Document.docId document)
-        texContent <- liftIO $ readFile texFilePath
-        result <- liftIO $ Pdf.create document
-        case result of
-            PdfSuccess fname ->
-                json $ object ["pdf" .= fname, "hasErrors" .= False, "tex" .= texContent]
-            PdfWithErrors pdfFile errorPdfFile errorJsonFile _ ->
-                json $ object ["pdf" .= pdfFile, "errorReport" .= errorPdfFile, "errorJson" .= errorJsonFile, "hasErrors" .= True, "tex" .= texContent]
-            PdfError _ _ -> do
-                pdfFileName <- liftIO $ Pdf.createWithFilteredErrors document failedImages
-                json $ object ["pdf" .= (Nothing :: Maybe Text), "errorReport" .= pdfFileName, "hasErrors" .= True, "pdfFailed" .= True, "tex" .= texContent]
+        body <- exclusively lock $ do
+            failedImages <- Document.prepareData document
+            let texFilePath = "inbox/" ++ unpack (Document.docId document)
+            -- Read strictly: the file is deleted after the compile.
+            texContent <- readFile texFilePath >>= \s -> length s `seq` return s
+            result <- Pdf.create document
+            case result of
+                PdfSuccess fname ->
+                    return $ object ["pdf" .= fname, "hasErrors" .= False, "tex" .= texContent]
+                PdfWithErrors pdfFile errorPdfFile errorJsonFile _ ->
+                    return $ object ["pdf" .= pdfFile, "errorReport" .= errorPdfFile, "errorJson" .= errorJsonFile, "hasErrors" .= True, "tex" .= texContent]
+                PdfError _ _ -> do
+                    pdfFileName <- Pdf.createWithFilteredErrors document failedImages
+                    return $ object ["pdf" .= (Nothing :: Maybe Text), "errorReport" .= pdfFileName, "hasErrors" .= True, "pdfFailed" .= True, "tex" .= texContent]
+        json body
 
     post "/tar" $ do
         document <- sanitizeDocument <$> (jsonData :: ActionM Document)
-        failedImages <- liftIO $ Document.prepareData document
-        liftIO $ Tar.create document
+        exclusively lock $ do
+            _ <- Document.prepareData document
+            Tar.create document
         text (Document.docId document)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 
     get "/pdf/:id" $ do
