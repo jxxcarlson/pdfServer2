@@ -94,10 +94,14 @@ your Mac:
 4. starts the service and checks it. A healthy run ends with `active`,
    `HTTP 404` (`/` has no page) and `Deployed: <commit>`.
 
-Check afterwards:
+Check afterwards. `/hello` reports the commit the running program was
+built from, recorded at compile time, e.g. `Yes, I am still here (d72a2b7,
+Sun Nov 1 21:40:12 2026 +0000)`; the same line starts the service log.
+"-dirty" means the build had uncommitted changes:
+
 
     systemctl is-active pdfServer          # on rose2: "active"
-    curl https://pdfserv.app/hello         # from anywhere
+    curl https://pdfserv.app/hello         # from anywhere: shows the running version
     journalctl -u pdfServer -n 50          # on rose2: recent log
 
 **Tests after a change**, run on rose2 against the live server. They
