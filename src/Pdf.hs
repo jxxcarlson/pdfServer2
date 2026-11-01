@@ -196,7 +196,7 @@ createWithFailedImages document failedImages = do
                                "\\end{document}"
         -- Write and compile the simple error document
         writeFile errorTexFileName simpleErrorContent
-        system ("xelatex -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1") >>= \_ -> return ()
+        system ("xelatex -no-shell-escape -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1") >>= \_ -> return ()
         system ("rm " ++ errorTexFileName) >>= \_ -> return ()
         system cleanupOutboxJunk >>= \_ -> return ()
         -- Return Left to indicate we handled the error
@@ -300,7 +300,7 @@ createWithFailedImages document failedImages = do
                     writeFile errorTexFileName errorTexContent
                     -- Compile it to PDF using system to avoid encoding issues
                     putStrLn "createWithErrorPdf: Compiling error PDF..."
-                    exitCode <- system $ "xelatex -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1"
+                    exitCode <- system $ "xelatex -no-shell-escape -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1"
                     putStrLn $ "createWithErrorPdf: XeLaTeX exit code for error PDF: " ++ show exitCode
                     -- Clean up the tex file and auxiliary output regardless of success
                     system ("rm -f " ++ errorTexFileName ++ " 2>/dev/null") >>= \_ -> return ()
@@ -343,7 +343,7 @@ createWithFailedImages document failedImages = do
                                                 "\\end{document}"
                             writeFile errorTexFileName fallbackContent
                             putStrLn "createWithErrorPdf: Compiling fallback PDF..."
-                            exitCode2 <- system $ "xelatex -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1"
+                            exitCode2 <- system $ "xelatex -no-shell-escape -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1"
                             system ("rm -f " ++ errorTexFileName ++ " 2>/dev/null") >>= \_ -> return ()
                             system cleanupOutboxJunk >>= \_ -> return ()
                             putStrLn $ "createWithErrorPdf: Fallback compilation exit code: " ++ show exitCode2
@@ -353,7 +353,7 @@ createWithFailedImages document failedImages = do
                                 let minimalTexFileName = "inbox/minimal-" ++ fileName
                                     minimalContent = "\\documentclass{article}\n\\begin{document}\nError: Failed to process document\n\\end{document}"
                                 writeFile minimalTexFileName minimalContent
-                                system $ "xelatex -output-directory=outbox -interaction=nonstopmode " ++ minimalTexFileName ++ " >/dev/null 2>&1"
+                                system $ "xelatex -no-shell-escape -output-directory=outbox -interaction=nonstopmode " ++ minimalTexFileName ++ " >/dev/null 2>&1"
                                 system ("rm -f " ++ minimalTexFileName ++ " 2>/dev/null") >>= \_ -> return ()
                                 system cleanupOutboxJunk >>= \_ -> return ()
                                 -- Copy the minimal PDF to the expected filename
@@ -380,7 +380,7 @@ createPdf_ fileName needsIndex =
         texFilename = "inbox/" ++ fileName
         -- Use timeout to prevent hanging (30 seconds per run)
         -- Exit code 124 means timeout occurred
-        cmd = "timeout 30 " ++ latexEngine ++ " -output-directory=outbox -interaction=batchmode " ++ texFilename ++ " >/dev/null 2>&1"
+        cmd = "timeout 30 " ++ latexEngine ++ " -no-shell-escape -output-directory=outbox -interaction=batchmode " ++ texFilename ++ " >/dev/null 2>&1"
         baseName = replace ".tex" "" fileName
         logFile = "outbox/" ++ baseName ++ ".log"
         makeindexCmd = "timeout 30 makeindex outbox/" ++ baseName ++ " >/dev/null 2>&1"
@@ -721,7 +721,7 @@ createWithFilteredErrors document failedImages = do
                                "\\end{document}"
         -- Write and compile the simple error document
         writeFile errorTexFileName simpleErrorContent
-        system ("xelatex -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1") >>= \_ -> return ()
+        system ("xelatex -no-shell-escape -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1") >>= \_ -> return ()
         system ("rm " ++ errorTexFileName) >>= \_ -> return ()
         system cleanupOutboxJunk >>= \_ -> return ()
         -- Return Left to indicate we handled the error
@@ -831,7 +831,7 @@ createWithFilteredErrors document failedImages = do
                     writeFile errorTexFileName errorTexContent
                     -- Compile it to PDF
                     putStrLn "createWithFilteredErrors: Compiling error PDF..."
-                    exitCode <- system $ "xelatex -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1"
+                    exitCode <- system $ "xelatex -no-shell-escape -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1"
                     putStrLn $ "createWithFilteredErrors: XeLaTeX exit code for error PDF: " ++ show exitCode
                     -- Clean up the tex file and auxiliary output
                     system ("rm -f " ++ errorTexFileName ++ " 2>/dev/null") >>= \_ -> return ()
@@ -851,7 +851,7 @@ createWithFilteredErrors document failedImages = do
                                                 "LaTeX compilation failed. Please check your document for errors.\n" ++
                                                 "\\end{document}"
                             writeFile errorTexFileName fallbackContent
-                            system $ "xelatex -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1"
+                            system $ "xelatex -no-shell-escape -output-directory=outbox -interaction=nonstopmode " ++ errorTexFileName ++ " >/dev/null 2>&1"
                             system ("rm -f " ++ errorTexFileName ++ " 2>/dev/null") >>= \_ -> return ()
                             system cleanupOutboxJunk >>= \_ -> return ()
                             let minimalPdfFileName = replace ".tex" ".pdf" ("error-" ++ fileName)

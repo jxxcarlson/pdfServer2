@@ -18,6 +18,7 @@ import System.FilePath
 import System.Path
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
+import Safe (sanitizeName, fetchUrl)
 -- import Network.HTTP.Client.MultipartFormData
 
 
@@ -45,6 +46,11 @@ data CFImage = CFImage
 
 getFilenameFromImage :: CFImage -> String
 getFilenameFromImage (CFImage _ filename _) = filename
+
+-- | Make the file name safe before anything uses it (it becomes a path in
+-- cf-image/). The URL is checked when it is fetched (Safe.fetchUrl).
+sanitizeCFImage :: CFImage -> CFImage
+sanitizeCFImage image = image { filename = sanitizeName (filename image) }
 
 updateCFImage :: String -> CFImage -> CFImage
 updateCFImage newUrl cfImage = 
@@ -130,9 +136,8 @@ prepareCFImage cfImage =
       downloadCFImage cfImage >> return () -- write the image file to ./cf-image
   
 
-downloadCFImage :: CFImage -> IO (GHC.IO.Exception.ExitCode)
-downloadCFImage image =
-   system ("wget -O " ++ "cf-image/" ++ (filename image) ++ " " ++  (url image))
+downloadCFImage :: CFImage -> IO Bool
+downloadCFImage image = fetchUrl (url image) ("cf-image/" ++ filename image)
 
 
 -- Tell Aeson how to create a CFImage object from JSON string.

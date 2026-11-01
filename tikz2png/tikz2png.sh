@@ -75,7 +75,7 @@ EOF
 # - `|| true` keeps `set -e` from aborting here so the figure.pdf check below
 #   produces the proper error response on failure or timeout.
 cd "$TMPDIR"
-timeout 60 pdflatex -interaction=nonstopmode figure.tex < /dev/null > /dev/null 2>&1 || true
+timeout 60 pdflatex -no-shell-escape -interaction=nonstopmode figure.tex < /dev/null > /dev/null 2>&1 || true
 
 if [ ! -f figure.pdf ]; then
     echo "Error: PDF compilation failed" >&2

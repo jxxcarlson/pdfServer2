@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Document (Document, ImageElement(..), fixGraphicsPath, docId, content, prepareData, urlList, packageList) where
+module Document (Document, ImageElement(..), fixGraphicsPath, docId, content, prepareData, urlList, packageList, sanitizeDocument) where
 import Data.Text.Lazy ( unpack, Text, pack )
 import Data.Text.Lazy.Encoding
 import Data.Aeson
@@ -10,7 +10,9 @@ import Data.List.Split
 import Data.List.Utils (replace)
 import Data.List (isInfixOf, isPrefixOf)
 import GHC.IO.Exception
-import System.Directory (getCurrentDirectory, doesFileExist, getFileSize)
+import System.Directory (getCurrentDirectory, doesFileExist, getFileSize, copyFile)
+import Control.Monad (forM_)
+import Safe (sanitizeName, fetchUrl)
 import System.Exit (ExitCode(..))
 import Control.Exception (catch, SomeException)
 import Data.Char (isAlphaNum)
@@ -61,6 +63,17 @@ instance ToJSON ImageElement where
 
 docId :: Document -> Text
 docId (Document id _ _ _) = id
+
+-- | Make every name in a request safe before anything uses it: the document
+-- id (it becomes file names and is pasted into shell commands in Pdf.hs and
+-- Tar.hs), image file names and package names. URLs are checked when they
+-- are fetched (Safe.fetchUrl).
+sanitizeDocument :: Document -> Document
+sanitizeDocument (Document id content images packages) =
+    Document (pack $ sanitizeName $ unpack id)
+             content
+             [ ImageElement u (sanitizeName f) | ImageElement u f <- images ]
+             [ pack (sanitizeName (unpack p)) | p <- packages, not (null (unpack p)) ]
 
 content :: Document -> Text
 content (Document _ content _ _ ) = content
@@ -146,19 +159,13 @@ downloadAndReplaceImageUrls content = do
         replacements <- mapM (\(idx, imageUrl) -> do
             let localName = urlToFilename imageUrl idx
             putStrLn $ "Downloading: " ++ imageUrl ++ " -> image/" ++ localName
-            exitCode <- system ("curl -s -o image/" ++ localName ++ " \"" ++ imageUrl ++ "\"")
-            case exitCode of
-                ExitSuccess -> do
-                    valid <- validateImage ("image/" ++ localName)
-                    if valid then do
-                        putStrLn $ "  OK: " ++ localName
-                        return (imageUrl, localName)
-                    else do
-                        putStrLn $ "  WARN: Downloaded file too small, keeping URL"
-                        return (imageUrl, imageUrl)  -- no replacement
-                _ -> do
-                    putStrLn $ "  WARN: Download failed, keeping URL"
-                    return (imageUrl, imageUrl)  -- no replacement
+            ok <- fetchUrl imageUrl ("image/" ++ localName)
+            if ok then do
+                putStrLn $ "  OK: " ++ localName
+                return (imageUrl, localName)
+            else do
+                putStrLn $ "  WARN: Download failed or refused, keeping URL"
+                return (imageUrl, imageUrl)  -- no replacement
             ) (zip [1..] urls)
         -- Apply all replacements
         let result = foldl (\c (old, new) -> replace old new c) content replacements
@@ -235,11 +242,7 @@ replaceGraphicsWithOptions content fname placeholder =
 
 -- Download image and return whether it was successful
 downloadImage :: ImageElement -> IO Bool
-downloadImage element = do
-    exitCode <- system ("curl -s -o " ++ "image/" ++ (filename element) ++ " \"" ++  (url element) ++ "\"")
-    case exitCode of
-        ExitSuccess -> validateImage ("image/" ++ filename element)
-        _ -> return False
+downloadImage element = fetchUrl (url element) ("image/" ++ filename element)
 
 -- Validate that an image file exists and is not too small
 validateImage :: FilePath -> IO Bool
@@ -254,12 +257,6 @@ validateImage path = do
 
 prepareData :: Document -> IO [ImageElement]
 prepareData doc =
-  let
-      paths = packagePaths doc
-      preparePackages = if null paths
-                        then "true"  -- no-op command when no packages
-                        else "cp " ++ paths ++ " inbox/"
-  in
     do
       -- Download images and track which ones failed
       results <- mapM (\img -> do
@@ -282,7 +279,12 @@ prepareData doc =
       else
           putStrLn "All images downloaded successfully."
 
-      system preparePackages            -- copy any packages needed from ./package to ./inbox
+      -- copy any packages needed from ./package to ./inbox (names were
+      -- sanitized in sanitizeDocument; unknown packages are skipped)
+      forM_ (map unpack (packageList doc)) $ \p -> do
+          exists <- doesFileExist ("package/" ++ p)
+          if exists then copyFile ("package/" ++ p) ("inbox/" ++ p)
+                    else putStrLn $ "Warning: unknown package " ++ show p
       writeTeXSourceFile doc failedImages  -- write the tex file to ./inbox with placeholders for failed images
 
       -- Return the list of failed images so they can be included in error reporting

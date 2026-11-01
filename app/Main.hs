@@ -20,15 +20,37 @@ import System.Process
 import Data.Text.Lazy (pack, unpack, replace, toLower, Text)
 import Pdf (create, createWithErrorPdf, createWithFailedImages, createWithFilteredErrors, PdfResult(..))
 import Tar
-import Document (Document, prepareData, docId)
+import Document (Document, prepareData, docId, sanitizeDocument)
 import qualified Cache
-import Image (CFImage,prepareCFImage,requestCFToken, updateCFImage, uploadTheImage, getFilenameFromImage)
+import Image (CFImage,prepareCFImage,requestCFToken, updateCFImage, uploadTheImage, getFilenameFromImage, sanitizeCFImage)
+import Safe (isSafeName)
+import System.Environment (setEnv, lookupEnv)
+import System.Directory (getCurrentDirectory)
+import Text.Read (readMaybe)
+import Data.Maybe (fromMaybe)
 import Tikz (TikzRequest, TikzResponse(..), convertTikzToPng)
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Text.Lazy.Encoding as TLE
 import qualified Data.List.Utils as U
 
-main = scotty 3000 $ do
+main :: IO ()
+main = do
+    -- Lock down TeX for every compile this process starts (xelatex here,
+    -- pdflatex in tikz2png.sh). Documents come from anyone on the internet:
+    --   shell_escape=f   \write18 can't run programs
+    --   openin_any=p     no dotfiles (.env), no "..", and absolute paths only
+    --   openout_any=p    inside TEXMFOUTPUT, i.e. this folder
+    -- TEXMFOUTPUT is the working directory because scripta's LaTeX uses an
+    -- absolute \graphicspath into ./image.
+    pwd <- getCurrentDirectory
+    mapM_ (uncurry setEnv)
+        [ ("shell_escape", "f"), ("openin_any", "p"), ("openout_any", "p")
+        , ("TEXMFOUTPUT", pwd) ]
+    port <- fromMaybe 3000 . (>>= readMaybe) <$> lookupEnv "PDFSERVER_PORT"
+    server port
+
+server :: Int -> IO ()
+server port = scotty port $ do
  
     middleware defaultMiddlewares
     middleware logStdoutDev 
@@ -45,7 +67,7 @@ main = scotty 3000 $ do
                 json result
 
     post "/image" $ do
-        image <- jsonData :: ActionM CFImage
+        image <- sanitizeCFImage <$> (jsonData :: ActionM CFImage)
         liftIO $ prepareCFImage image
         cfImageUploadUrl <- liftIO $ requestCFToken
         let cfImageUploadUrl' = U.replace "\"" "" cfImageUploadUrl
@@ -57,7 +79,7 @@ main = scotty 3000 $ do
         text $ pack cfUploadedImageResponse
 
     post "/json" $ do
-        document <- jsonData :: ActionM Document
+        document <- sanitizeDocument <$> (jsonData :: ActionM Document)
         failedImages <- liftIO $ Document.prepareData document
         result <- liftIO $ Pdf.create document
         case result of
@@ -75,7 +97,7 @@ main = scotty 3000 $ do
                 json $ object ["pdf" .= (Nothing :: Maybe Text), "errorReport" .= pdfFileName, "hasErrors" .= True, "pdfFailed" .= True]
 
     post "/pdf" $ do
-        document <- jsonData :: ActionM Document
+        document <- sanitizeDocument <$> (jsonData :: ActionM Document)
         let hash = Cache.contentHash document
         let pdfName = unpack (replace ".tex" ".pdf" (docId document))
         hit <- liftIO $ Cache.cacheLookup hash ("outbox/" ++ pdfName)
@@ -96,7 +118,7 @@ main = scotty 3000 $ do
                         json $ object ["pdf" .= (Nothing :: Maybe Text), "errorReport" .= pdfFileName, "hasErrors" .= True, "pdfFailed" .= True]
 
     post "/tex" $ do
-        document <- jsonData :: ActionM Document
+        document <- sanitizeDocument <$> (jsonData :: ActionM Document)
         failedImages <- liftIO $ Document.prepareData document
         let texFilePath = "inbox/" ++ unpack (Document.docId document)
         texContent <- liftIO $ readFile texFilePath
@@ -111,19 +133,23 @@ main = scotty 3000 $ do
                 json $ object ["pdf" .= (Nothing :: Maybe Text), "errorReport" .= pdfFileName, "hasErrors" .= True, "pdfFailed" .= True, "tex" .= texContent]
 
     post "/tar" $ do
-        document <- jsonData :: ActionM Document
+        document <- sanitizeDocument <$> (jsonData :: ActionM Document)
         failedImages <- liftIO $ Document.prepareData document
         liftIO $ Tar.create document
         text (Document.docId document)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 
     get "/pdf/:id" $ do
         docId <- param "id"
-        file ("outbox/" ++ docId)
+        if isSafeName docId
+            then file ("outbox/" ++ docId)
+            else status status404
 
 
     get "/tar/:id" $ do
         docId <- param "id"
-        file ("outbox/" ++ (unpack docId) )
+        if isSafeName (unpack docId)
+            then file ("outbox/" ++ (unpack docId) )
+            else status status404
 
     get "/hello" $ do
         html $ mconcat ["Yes, I am still here (c2f9a74)\n"]

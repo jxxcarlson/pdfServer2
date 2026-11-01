@@ -11,6 +11,7 @@ import System.Directory (getCurrentDirectory, doesFileExist, copyFile)
 import Control.Exception (catch, SomeException, try)
 import System.FilePath ((</>))
 import Image (requestCFToken, uploadTheImage)
+import Safe (sanitizeName)
 import Data.List.Utils (replace)
 import qualified Data.Aeson as A
 import qualified Data.ByteString.Lazy.Char8 as BL
@@ -75,7 +76,7 @@ convertTikzToPng :: TikzRequest -> IO TikzResponse
 convertTikzToPng (TikzRequest name tikzContent maybePreamble) = do
     let tikzCode = unpack tikzContent
         preambleCode = maybe "" unpack maybePreamble
-        fileName = unpack name
+        fileName = sanitizeName (unpack name)
         -- Generate output filename based on input name (replace .json with .png)
         outputName = if ".json" `elem` words fileName
                      then take (length fileName - 5) fileName ++ ".png"
