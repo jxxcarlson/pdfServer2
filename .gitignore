@@ -17,3 +17,13 @@ experiments/
 
 # hpack-generated; regenerated from package.yaml on build
 *.cabal
+
+# GHC build products from compiling single files by hand
+*.hi
+*.o
+
+# The standalone concordance tool (see README): its compiled program,
+# build folder and output
+/Concordance
+/.concordance-build/
+/concordance.txt
