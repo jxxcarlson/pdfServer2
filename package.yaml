@@ -41,6 +41,7 @@ dependencies:
 - containers
 - network
 - network-uri
+- githash
 
 
 

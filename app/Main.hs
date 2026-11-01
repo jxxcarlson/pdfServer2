@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 
 -- https://dev.to/parambirs/how-to-write-a-haskell-web-servicefrom-scratch---part-3-5en6
@@ -29,13 +30,25 @@ import System.Environment (setEnv, lookupEnv)
 import System.Directory (getCurrentDirectory)
 import Text.Read (readMaybe)
 import Data.Maybe (fromMaybe)
+import GitHash (tGitInfoCwdTry, giHash, giDirty, giCommitDate)
 import Tikz (TikzRequest, TikzResponse(..), convertTikzToPng)
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Text.Lazy.Encoding as TLE
 import qualified Data.List.Utils as U
 
+-- | The commit this program was built from, recorded at compile time
+-- (Template Haskell runs git in the source tree). "-dirty" means the build
+-- had uncommitted changes; "unknown" means it was built without a git
+-- checkout.
+version :: String
+version = case $$tGitInfoCwdTry of
+    Right gi -> take 7 (giHash gi) ++ (if giDirty gi then "-dirty" else "")
+                ++ ", " ++ giCommitDate gi    -- e.g. "Sun Nov 1 21:40:12 2026 +0000"
+    Left _ -> "unknown"
+
 main :: IO ()
 main = do
+    putStrLn $ "pdfServer version " ++ version
     -- Lock down TeX for every compile this process starts (xelatex here,
     -- pdflatex in tikz2png.sh). Documents come from anyone on the internet:
     --   shell_escape=f   \write18 can't run programs
@@ -166,7 +179,7 @@ server lock port = scotty port $ do
             else status status404
 
     get "/hello" $ do
-        html $ mconcat ["Yes, I am still here (c2f9a74)\n"]
+        html $ mconcat ["Yes, I am still here (", pack version, ")\n"]
 
     post "/hello" $ do
        text "Yes, I am still here\n"
