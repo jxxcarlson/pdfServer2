@@ -10,9 +10,9 @@ scripts:
 
   edit-start: vim /etc/systemd/system/pdfServer.service
 
-  ssh: ssh root@161.35.125.40
+  ssh: ssh root@147.182.143.224
 
-  ping: ping 161.35.125.40
+  ping: ping 147.182.143.224
 
   hello: curl http://pdfserv.app/hello
 
@@ -40,7 +40,7 @@ scripts:
 
   nginx-start: systemctl start nginx
 
-  test-server: curl http://161.35.125.40/hello
+  test-server: curl http://147.182.143.224/hello
 
   test-server2: curl https://shoobox.io/hello
 
