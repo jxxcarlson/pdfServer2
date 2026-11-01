@@ -13,11 +13,12 @@ outbox/ and inbox/ (names starting test-, read-, ssrf, inject-, ...), and
 the TikZ check uploads one small circle to Cloudflare Images.
 Written for the 2026-11-01 hardening (commit 7cf920e): 26 checks.
 """
-import json, os, subprocess, sys, urllib.request, urllib.error
+import json, os, subprocess, sys, urllib.request, urllib.error, uuid
 
 PORT, WORK = sys.argv[1], sys.argv[2]
 BASE = f"http://127.0.0.1:{PORT}"
 MARK = "/var/lib/pdfserver"          # writable by the service: markers would land here
+RUN = uuid.uuid4().hex[:8]           # unique text per run, so the PDF cache never answers
 results = []
 
 def post(path, body, timeout=120):
@@ -65,11 +66,12 @@ t = pdf_text("test-math.pdf")
 check("simple document typesets", s == 200 and t and "Math" in t, f"{s} {b[:80]}")
 
 img = "https://www.w3.org/Graphics/PNG/nurbcup2si.png"
-s, b = post("/pdf", doc("test-image.tex", GFX % (WORK, r"\includegraphics[width=3cm]{%s}" % img),
+s, b = post("/pdf", doc("test-image.tex", GFX % (WORK, r"\includegraphics[width=3cm]{%s} %s" % (img, RUN)),
                         urls=[(img, "cup.png")]))
 check("image via urlList downloads and typesets", s == 200 and '"hasErrors":false' in b, b[:120])
-check("  image file was fetched", os.path.exists(os.path.join(WORK, "image", "cup.png"))
-      or os.path.exists(os.path.join(WORK, "save", "test-image.tex")))
+images = subprocess.run(["pdfimages", "-list", os.path.join(WORK, "outbox", "test-image.pdf")],
+                        capture_output=True, text=True).stdout.count("\n") - 2
+check("  the PDF contains the downloaded image", images >= 1, f"{max(images, 0)} image(s)")
 
 s, b = post("/pdf", doc("Sketch 1 schrödinger.tex", ART % "Odd name."))
 check("odd document name is cleaned, not refused", s == 200 and "Sketch-1-schr-dinger.pdf" in b, b[:120])
