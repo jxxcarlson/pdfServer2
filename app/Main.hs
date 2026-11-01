@@ -30,20 +30,20 @@ import System.Environment (setEnv, lookupEnv)
 import System.Directory (getCurrentDirectory)
 import Text.Read (readMaybe)
 import Data.Maybe (fromMaybe)
-import GitHash (tGitInfoCwdTry, giHash, giDirty, giCommitDate)
+import GitHash (tGitInfoCwdTry, giHash, giCommitDate)
 import Tikz (TikzRequest, TikzResponse(..), convertTikzToPng)
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Text.Lazy.Encoding as TLE
 import qualified Data.List.Utils as U
 
 -- | The commit this program was built from, recorded at compile time
--- (Template Haskell runs git in the source tree). "-dirty" means the build
--- had uncommitted changes; "unknown" means it was built without a git
--- checkout.
+-- (Template Haskell runs git in the source tree); "unknown" without a git
+-- checkout. No "-dirty" marker: on the server, untracked files (deploy.sh's
+-- own build output, for one) always made it "dirty", and deploy.sh builds
+-- a clean pull of master anyway.
 version :: String
 version = case $$tGitInfoCwdTry of
-    Right gi -> take 7 (giHash gi) ++ (if giDirty gi then "-dirty" else "")
-                ++ ", " ++ giCommitDate gi    -- e.g. "Sun Nov 1 21:40:12 2026 +0000"
+    Right gi -> take 7 (giHash gi) ++ ", " ++ giCommitDate gi    -- e.g. "Sun Nov 1 21:40:12 2026 +0000"
     Left _ -> "unknown"
 
 main :: IO ()

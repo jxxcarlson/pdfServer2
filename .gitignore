@@ -22,8 +22,11 @@ experiments/
 *.hi
 *.o
 
-# The standalone concordance tool (see README): its compiled program,
-# build folder and output
+# The standalone concordance tool (see README) is local only: its source,
+# compiled program, build folder and output. Not in the repo, because a
+# top-level Concordance.hs clashes with the library module Concordance
+# during `stack build`.
+/Concordance.hs
 /Concordance
 /.concordance-build/
 /concordance.txt

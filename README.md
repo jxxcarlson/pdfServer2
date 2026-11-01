@@ -96,8 +96,7 @@ your Mac:
 
 Check afterwards. `/hello` reports the commit the running program was
 built from, recorded at compile time, e.g. `Yes, I am still here (d72a2b7,
-Sun Nov 1 21:40:12 2026 +0000)`; the same line starts the service log.
-"-dirty" means the build had uncommitted changes:
+Sun Nov 1 21:40:12 2026 +0000)`; the same line starts the service log:
 
 
     systemctl is-active pdfServer          # on rose2: "active"
@@ -139,8 +138,10 @@ Stack uses ghcup's GHC.
 
 ## Concordance tool (standalone)
 
-`Concordance.hs`, at the top of the repo, is a small command-line program
-for trying out the module `src/Concordance.hs` by hand. That module is
+`Concordance.hs` is a small command-line program, kept **locally only**
+(it's gitignored, not in the repo), for trying out the module
+`src/Concordance.hs` by hand. It lives at the top of the repo folder, so
+it can import the module from `src/`. That module is
 what the server uses (`src/Pdf.hs`) to point its error reports at the
 right place in the Scripta source.
 
