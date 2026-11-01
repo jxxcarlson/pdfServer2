@@ -11,7 +11,8 @@ use harmless markers (touching files in /var/lib/pdfserver), so a failure
 is visible but does no damage. It leaves test documents in WORKDIR's save/,
 outbox/ and inbox/ (names starting test-, read-, ssrf, inject-, ...), and
 the TikZ check uploads one small circle to Cloudflare Images.
-Written for the 2026-11-01 hardening (commit 7cf920e): 26 checks.
+Written for the 2026-11-01 hardening (commit 7cf920e); more checks added
+since (image URL replacement).
 """
 import json, os, subprocess, sys, urllib.request, urllib.error, uuid
 
@@ -75,6 +76,25 @@ check("  the PDF contains the downloaded image", images >= 1, f"{max(images, 0)}
 
 s, b = post("/pdf", doc("Sketch 1 schrödinger.tex", ART % "Odd name."))
 check("odd document name is cleaned, not refused", s == 200 and "Sketch-1-schr-dinger.pdf" in b, b[:120])
+
+# Image URLs are replaced only where they fill a whole {argument}: a bad
+# image entry whose "URL" is "1" used to turn every 1 into image-1.jpg.
+s, b = post("/pdf", doc("test-ones.tex",
+    GFX % (WORK, "Sum: 1 + 1 = 2 and 11. %s\n\n\\includegraphics[width=2cm]{ %s  }" % (RUN, img)),
+    urls=[("1", "image-1.jpg")]))
+t = pdf_text("test-ones.pdf") or ""
+images = subprocess.run(["pdfimages", "-list", os.path.join(WORK, "outbox", "test-ones.pdf")],
+                        capture_output=True, text=True).stdout.count("\n") - 2
+check("a bad image entry '1' doesn't rewrite the 1s in the text", "1 + 1 = 2 and 11" in t, t[:60].replace("\n", " "))
+check("  an image URL with spaces inside its braces still loads", images >= 1, f"{max(images, 0)} image(s)")
+
+MACRO = (r"\documentclass{article}" "\n" r"\usepackage{graphicx}" "\n"
+         r"\graphicspath{{%s/image/}}" "\n" r"\newcommand{\img}[1]{\includegraphics[width=2cm]{#1}}" "\n"
+         r"\begin{document}" "\n%s\n" r"\end{document}" "\n")
+s, b = post("/pdf", doc("test-macro.tex", MACRO % (WORK, r"Macro %s: \img{%s}" % (RUN, img)), urls=[(img, "macro.png")]))
+images = subprocess.run(["pdfimages", "-list", os.path.join(WORK, "outbox", "test-macro.pdf")],
+                        capture_output=True, text=True).stdout.count("\n") - 2
+check("an urlList image used through a macro is replaced and typeset", s == 200 and images >= 1, f"{b[:60]} {max(images, 0)} image(s)")
 
 s, b = get("/pdf/test-math.pdf")
 check("GET /pdf/<name> serves the PDF", s == 200 and b[:5] == b"%PDF-", str(s))

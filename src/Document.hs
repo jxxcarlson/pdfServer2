@@ -8,14 +8,14 @@ import Control.Applicative
 import System.Process
 import Data.List.Split
 import Data.List.Utils (replace)
-import Data.List (isInfixOf, isPrefixOf)
+import Data.List (isInfixOf, isPrefixOf, dropWhileEnd)
 import GHC.IO.Exception
 import System.Directory (getCurrentDirectory, doesFileExist, getFileSize, copyFile)
 import Control.Monad (forM_)
 import Safe (sanitizeName, fetchUrl)
 import System.Exit (ExitCode(..))
 import Control.Exception (catch, SomeException)
-import Data.Char (isAlphaNum)
+import Data.Char (isAlphaNum, isSpace)
 
 -- Define the Article constructor
 -- e.g. Article 12 "some title" "some body text"
@@ -116,7 +116,8 @@ extractImageUrls content =
         Nothing -> []
         Just rest ->
             -- rest starts just after the '{' of \includegraphics...{
-            let (urlStr, remaining) = span (/= '}') rest
+            let (rawUrl, remaining) = span (/= '}') rest
+                urlStr = trim rawUrl   -- exports sometimes leave spaces inside the braces
             in if "http" `isPrefixOf` urlStr
                then urlStr : extractImageUrls remaining
                else extractImageUrls remaining
@@ -167,16 +168,34 @@ downloadAndReplaceImageUrls content = do
                 putStrLn $ "  WARN: Download failed or refused, keeping URL"
                 return (imageUrl, imageUrl)  -- no replacement
             ) (zip [1..] urls)
-        -- Apply all replacements
-        let result = foldl (\c (old, new) -> replace old new c) content replacements
-        return result
+        -- Apply all replacements (only where a URL is a whole {argument})
+        return (replaceUrlArguments replacements content)
 
 -- Replace each image URL in the content with its local filename
 replaceImageUrls :: String -> [ImageElement] -> String
-replaceImageUrls content [] = content
-replaceImageUrls content (img:imgs) =
-    let replaced = replace (url img) (filename img) content
-    in replaceImageUrls replaced imgs
+replaceImageUrls content imgs = replaceUrlArguments [ (url i, filename i) | i <- imgs ] content
+
+-- | Replace image URLs by local file names, but only where a URL fills a
+-- whole brace argument, e.g. \includegraphics[width=..]{URL} or a macro's
+-- {URL} (spaces inside the braces are ignored), and only for http(s)
+-- URLs. Plain text replacement used to change a URL anywhere in the
+-- document: an image entry whose "URL" was "1" turned every 1 in the
+-- document, text and math included, into image-1.jpg.
+replaceUrlArguments :: [(String, String)] -> String -> String
+replaceUrlArguments pairs = go
+  where
+    table = [ (u, f) | (u, f) <- pairs, isHttpUrl u, u /= f ]
+    isHttpUrl u = "http://" `isPrefixOf` u || "https://" `isPrefixOf` u
+    go [] = []
+    go ('{' : rest) =
+        let (arg, after) = break (\c -> c == '{' || c == '}') rest
+        in case after of
+             ('}' : after') | Just f <- lookup (trim arg) table -> '{' : f ++ "}" ++ go after'
+             _ -> '{' : go rest
+    go (c : rest) = c : go rest
+
+trim :: String -> String
+trim = dropWhileEnd isSpace . dropWhile isSpace
 
 -- Replace references to failed images with a placeholder
 replaceFailedImages :: String -> [ImageElement] -> String
